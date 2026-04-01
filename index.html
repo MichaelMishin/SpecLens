@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>SpecLens Demo</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: system-ui, sans-serif; }
+
+    /* Example: Override SpecLens design tokens from outside */
+    spec-lens {
+      --sl-color-primary: #6366f1;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Method 1: Custom Element -->
+  <spec-lens spec-url="/demo/petstore.json"></spec-lens>
+
+  <!-- Method 2: Global Function (commented out)
+  <div id="docs"></div>
+  <script>
+    SpecLens.init('#docs', {
+      specUrl: '/demo/petstore.json',
+      theme: 'auto',
+    });
+  </script>
+  -->
+
+  <script type="module" src="/src/index.ts"></script>
+</body>
+</html>
