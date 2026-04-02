@@ -1,8 +1,22 @@
 {
-  "name": "speclens",
+  "name": "@michaelmishin/speclens",
   "version": "0.1.0",
   "description": "A modern, CDN-distributable OpenAPI documentation renderer with Try It console, code samples, and full-text search.",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/MichaelMishin/SpecLens.git"
+  },
+  "homepage": "https://github.com/MichaelMishin/SpecLens#readme",
+  "keywords": [
+    "openapi",
+    "swagger",
+    "web-component",
+    "api-docs",
+    "documentation",
+    "openapi3",
+    "rest-api"
+  ],
   "type": "module",
   "main": "./dist/speclens.js",
   "module": "./dist/speclens.js",
@@ -20,7 +34,8 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "prepublishOnly": "npm run build"
   },
   "dependencies": {
     "@apidevtools/swagger-parser": "^10.1.0",

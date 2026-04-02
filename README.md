@@ -19,7 +19,7 @@ A modern, lightweight OpenAPI documentation renderer built as a web component. D
 ### CDN (recommended for quick start)
 
 ```html
-<script src="https://unpkg.com/speclens/dist/speclens.iife.js"></script>
+<script src="https://unpkg.com/@michaelmishin/speclens/dist/speclens.iife.js"></script>
 
 <spec-lens spec-url="/openapi.json"></spec-lens>
 ```
@@ -27,10 +27,10 @@ A modern, lightweight OpenAPI documentation renderer built as a web component. D
 ### ES Module
 
 ```js
-import 'speclens';
+import '@michaelmishin/speclens';
 
 // or via SpecLens.init() for programmatic control
-import { SpecLens } from 'speclens';
+import { SpecLens } from '@michaelmishin/speclens';
 
 SpecLens.init('#docs', {
   specUrl: '/openapi.json',
@@ -41,7 +41,7 @@ SpecLens.init('#docs', {
 ### npm
 
 ```bash
-npm install speclens
+npm install @michaelmishin/speclens
 ```
 
 ## Theming
