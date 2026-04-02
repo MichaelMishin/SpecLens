@@ -2,7 +2,6 @@ import { LitElement, html, css } from 'lit';
 import { customElement, property } from 'lit/decorators.js';
 import { resetStyles } from '../../styles/reset.css.js';
 import type { ParsedSpec } from '../../core/types.js';
-import { marked } from 'marked';
 
 @customElement('sl-header')
 export class SlHeader extends LitElement {
@@ -92,133 +91,45 @@ export class SlHeader extends LitElement {
         color: var(--sl-color-text);
       }
 
-      .search-btn {
-        display: flex;
-        align-items: center;
-        gap: var(--sl-spacing-sm);
-        padding: 6px 12px;
-        border-radius: var(--sl-radius-md);
-        border: 1px solid var(--sl-color-border);
-        color: var(--sl-color-text-muted);
-        font-size: var(--sl-font-size-sm);
-        transition: all var(--sl-transition-fast);
-        min-width: 200px;
-      }
-
-      .search-btn:hover {
-        border-color: var(--sl-color-border-hover);
-        color: var(--sl-color-text-secondary);
-      }
-
-      .search-btn .shortcut {
-        margin-left: auto;
-        font-size: var(--sl-font-size-xs);
-        padding: 1px 5px;
-        border-radius: 3px;
-        background: var(--sl-color-surface-raised);
-        border: 1px solid var(--sl-color-border);
-        font-family: var(--sl-font-mono);
-      }
-
-      @media (max-width: 768px) {
-        .search-btn {
-          min-width: unset;
-          padding: 6px 10px;
-        }
-        .search-btn .search-text,
-        .search-btn .shortcut {
-          display: none;
-        }
-      }
-
-      .info-bar {
-        padding: var(--sl-spacing-md) var(--sl-spacing-xl);
-        border-top: 1px solid var(--sl-color-border);
-        font-size: var(--sl-font-size-sm);
-      }
-
-      .info-bar .description {
-        color: var(--sl-color-text-secondary);
-        line-height: 1.6;
-      }
-
-      .info-bar .description p {
-        margin: 0 0 var(--sl-spacing-sm) 0;
-      }
-
-      .info-bar .description p:last-child {
-        margin-bottom: 0;
-      }
-
-      .server-bar {
-        display: flex;
-        align-items: center;
-        gap: var(--sl-spacing-sm);
-        padding: var(--sl-spacing-sm) var(--sl-spacing-xl);
-        border-top: 1px solid var(--sl-color-border);
-        background: var(--sl-color-bg-subtle);
-        font-size: var(--sl-font-size-sm);
-      }
-
-      .server-label {
-        color: var(--sl-color-text-muted);
-        font-weight: 500;
-        white-space: nowrap;
-      }
-
-      .server-select {
-        padding: 4px 8px;
-        border-radius: var(--sl-radius-sm);
-        border: 1px solid var(--sl-color-border);
-        background: var(--sl-color-surface);
-        color: var(--sl-color-text);
-        font-family: var(--sl-font-mono);
-        font-size: var(--sl-font-size-sm);
-        max-width: 400px;
-      }
-
       .auth-btn {
+        display: flex;
+        align-items: center;
+        gap: 6px;
         font-size: var(--sl-font-size-sm);
-        padding: 4px 12px;
-        border-radius: var(--sl-radius-md);
-        border: 1px solid var(--sl-color-border);
+        font-weight: 600;
+        height: 34px;
+        padding: 0 14px;
+        border-radius: var(--sl-radius-full);
+        border: 1.5px solid var(--sl-color-border);
         color: var(--sl-color-text-secondary);
-        font-weight: 500;
+        background: transparent;
+        letter-spacing: 0.01em;
         transition: all var(--sl-transition-fast);
       }
 
       .auth-btn:hover {
         border-color: var(--sl-color-primary);
         color: var(--sl-color-primary);
+        background: var(--sl-color-sidebar-active);
       }
 
       .auth-btn.active {
         background: var(--sl-color-primary);
         color: var(--sl-color-primary-text);
         border-color: var(--sl-color-primary);
+        box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2);
+      }
+
+      .auth-btn.active:hover {
+        background: var(--sl-color-primary-hover);
+        border-color: var(--sl-color-primary-hover);
+        box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.3);
       }
     `,
   ];
 
   @property({ type: Object }) spec: ParsedSpec | null = null;
   @property({ type: Boolean }) authOpen = false;
-
-  private _handleKeyDown = (e: KeyboardEvent) => {
-    if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
-      e.preventDefault();
-      this.dispatchEvent(new CustomEvent('toggle-search'));
-    }
-  };
-
-  override connectedCallback(): void {
-    super.connectedCallback();
-    document.addEventListener('keydown', this._handleKeyDown);
-  }
-
-  override disconnectedCallback(): void {
-    super.disconnectedCallback();
-    document.removeEventListener('keydown', this._handleKeyDown);
-  }
 
   override render() {
     if (!this.spec) return html``;
@@ -239,25 +150,16 @@ export class SlHeader extends LitElement {
         <div class="spacer"></div>
 
         <div class="actions">
-          <button class="search-btn" @click=${() => this.dispatchEvent(new CustomEvent('toggle-search'))}>
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
-              <circle cx="7" cy="7" r="4.5"/>
-              <path d="M10.5 10.5L14 14" stroke-linecap="round"/>
-            </svg>
-            <span class="search-text">Search endpoints…</span>
-            <span class="shortcut">⌘K</span>
-          </button>
-
           ${this.spec.securitySchemes.length > 0 ? html`
             <button
               class="auth-btn ${this.authOpen ? 'active' : ''}"
               @click=${() => this.dispatchEvent(new CustomEvent('toggle-auth'))}
             >
-              <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" style="vertical-align: -2px; margin-right: 4px;">
-                <rect x="3" y="7" width="10" height="7" rx="1"/>
-                <path d="M5 7V5a3 3 0 016 0v2"/>
+              <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="3" y="7" width="10" height="7" rx="1.5"/>
+                <path d="M5.5 7V5a2.5 2.5 0 015 0v2"/>
               </svg>
-              Auth
+              Authorize
             </button>
           ` : null}
 
@@ -269,23 +171,6 @@ export class SlHeader extends LitElement {
           </button>
         </div>
       </div>
-
-      ${this.spec.description ? html`
-        <div class="info-bar">
-          <div class="description" .innerHTML=${marked.parse(this.spec.description) as string}></div>
-        </div>
-      ` : null}
-
-      ${this.spec.servers.length > 0 ? html`
-        <div class="server-bar">
-          <span class="server-label">Server:</span>
-          <select class="server-select">
-            ${this.spec.servers.map(s => html`
-              <option value=${s.url}>${s.url}${s.description ? ` — ${s.description}` : ''}</option>
-            `)}
-          </select>
-        </div>
-      ` : null}
     `;
   }
 }

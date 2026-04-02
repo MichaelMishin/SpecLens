@@ -7,7 +7,6 @@ import type { ParsedOperation, ParsedServer, SecurityScheme, AuthState } from '.
 import './sl-parameters.js';
 import './sl-request-body.js';
 import './sl-responses.js';
-import './sl-try-it.js';
 import '../code/sl-code-samples.js';
 import '../schema/sl-schema.js';
 
@@ -95,6 +94,27 @@ export class SlOperation extends LitElement {
         color: var(--sl-color-badge-deprecated);
       }
 
+      .try-it-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 4px 14px;
+        border-radius: var(--sl-radius-md);
+        font-size: var(--sl-font-size-xs);
+        font-weight: 600;
+        color: var(--sl-color-primary);
+        border: 1px solid var(--sl-color-primary);
+        background: transparent;
+        cursor: pointer;
+        transition: all var(--sl-transition-fast);
+        white-space: nowrap;
+      }
+
+      .try-it-btn:hover {
+        background: var(--sl-color-primary);
+        color: var(--sl-color-primary-text);
+      }
+
       .expand-icon {
         color: var(--sl-color-text-muted);
         transition: transform var(--sl-transition-fast);
@@ -107,7 +127,35 @@ export class SlOperation extends LitElement {
 
       .op-body {
         border-top: 1px solid var(--sl-color-border);
+        display: grid;
+        grid-template-columns: 3fr 2fr;
+        gap: 0;
+        min-height: 0;
+      }
+
+      .op-content {
         padding: var(--sl-spacing-lg);
+        min-width: 0;
+        overflow: hidden;
+      }
+
+      .op-code-panel {
+        padding: var(--sl-spacing-lg);
+        border-left: 1px solid var(--sl-color-border);
+        background: var(--sl-color-bg-subtle);
+        min-width: 0;
+        overflow: hidden;
+      }
+
+      .op-responses-panel {
+        margin-top: var(--sl-spacing-lg);
+        padding-top: var(--sl-spacing-lg);
+        border-top: 1px solid var(--sl-color-border);
+      }
+
+      .op-code-sticky {
+        position: sticky;
+        top: calc(var(--sl-header-height) + var(--sl-spacing-lg));
       }
 
       .op-description {
@@ -141,6 +189,43 @@ export class SlOperation extends LitElement {
         letter-spacing: 0.04em;
       }
 
+      .section-title:first-child {
+        margin-top: 0;
+      }
+
+      .response-schema-block {
+        margin-bottom: var(--sl-spacing-md);
+        border: 1px solid var(--sl-color-border);
+        border-radius: var(--sl-radius-md);
+        overflow: hidden;
+      }
+
+      .response-schema-header {
+        display: flex;
+        align-items: center;
+        gap: var(--sl-spacing-sm);
+        padding: var(--sl-spacing-sm) var(--sl-spacing-md);
+        background: var(--sl-color-bg-subtle);
+        border-bottom: 1px solid var(--sl-color-border);
+      }
+
+      .response-schema-status {
+        font-family: var(--sl-font-mono);
+        font-size: var(--sl-font-size-xs);
+        font-weight: 700;
+      }
+
+      .response-schema-status.status-2xx { color: var(--sl-color-success); }
+      .response-schema-status.status-3xx { color: var(--sl-color-info); }
+      .response-schema-status.status-4xx { color: var(--sl-color-warning); }
+      .response-schema-status.status-5xx { color: var(--sl-color-danger); }
+      .response-schema-status.status-default { color: var(--sl-color-text-muted); }
+
+      .response-schema-desc {
+        font-size: var(--sl-font-size-xs);
+        color: var(--sl-color-text-muted);
+      }
+
       .copy-link-btn {
         margin-left: auto;
         padding: 4px 8px;
@@ -158,6 +243,19 @@ export class SlOperation extends LitElement {
       .copy-link-btn:hover {
         background: var(--sl-color-surface-raised);
         color: var(--sl-color-text);
+      }
+
+      @media (max-width: 900px) {
+        .op-body {
+          grid-template-columns: 1fr;
+        }
+        .op-code-panel {
+          border-left: none;
+          border-top: 1px solid var(--sl-color-border);
+        }
+        .op-code-sticky {
+          position: static;
+        }
       }
     `,
   ];
@@ -191,6 +289,15 @@ export class SlOperation extends LitElement {
     navigator.clipboard.writeText(url);
   }
 
+  private _openTryIt(e: Event) {
+    e.stopPropagation();
+    this.dispatchEvent(new CustomEvent('try-it', {
+      detail: this.operation,
+      bubbles: true,
+      composed: true,
+    }));
+  }
+
   override render() {
     const op = this.operation;
     if (!op) return html``;
@@ -202,6 +309,14 @@ export class SlOperation extends LitElement {
           <span class="op-path">${op.path}</span>
           <span class="op-summary">${op.summary}</span>
           ${op.deprecated ? html`<span class="badge-deprecated">Deprecated</span>` : null}
+          ${!this.hideTryIt ? html`
+            <button class="try-it-btn" @click=${this._openTryIt}>
+              <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor">
+                <path d="M4 2l10 6-10 6V2z"/>
+              </svg>
+              Try It
+            </button>
+          ` : null}
           <button class="copy-link-btn" @click=${this._copyLink} title="Copy link">
             <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
               <rect x="5" y="5" width="8" height="8" rx="1"/>
@@ -215,45 +330,54 @@ export class SlOperation extends LitElement {
 
         ${this._expanded ? html`
           <div class="op-body">
-            ${op.description ? html`
-              <div class="op-description" .innerHTML=${marked.parse(op.description) as string}></div>
-            ` : null}
+            <div class="op-content">
+              ${op.description ? html`
+                <div class="op-description" .innerHTML=${marked.parse(op.description) as string}></div>
+              ` : null}
 
-            ${op.parameters.length > 0 ? html`
-              <div class="section-title">Parameters</div>
-              <sl-parameters .parameters=${op.parameters}></sl-parameters>
-            ` : null}
+              ${op.parameters.length > 0 ? html`
+                <div class="section-title">Parameters</div>
+                <sl-parameters .parameters=${op.parameters}></sl-parameters>
+              ` : null}
 
-            ${op.requestBody ? html`
-              <div class="section-title">Request Body ${op.requestBody.required ? html`<span style="color:var(--sl-color-badge-required)">*</span>` : ''}</div>
-              <sl-request-body .requestBody=${op.requestBody}></sl-request-body>
-            ` : null}
+              ${op.requestBody ? html`
+                <div class="section-title">Request Body ${op.requestBody.required ? html`<span style="color:var(--sl-color-badge-required)">*</span>` : ''}</div>
+                <sl-request-body .requestBody=${op.requestBody}></sl-request-body>
+              ` : null}
 
-            ${op.responses.length > 0 ? html`
-              <div class="section-title">Responses</div>
-              <sl-responses .responses=${op.responses}></sl-responses>
-            ` : null}
+              ${op.responses.some(r => r.content[0]?.schema) ? html`
+                <div class="section-title">Response Schema</div>
+                ${op.responses.filter(r => r.content[0]?.schema).map(r => html`
+                  <div class="response-schema-block">
+                    <div class="response-schema-header">
+                      <span class="response-schema-status status-${r.statusCode.startsWith('2') ? '2xx' : r.statusCode.startsWith('3') ? '3xx' : r.statusCode.startsWith('4') ? '4xx' : r.statusCode.startsWith('5') ? '5xx' : 'default'}">${r.statusCode}</span>
+                      ${r.description ? html`<span class="response-schema-desc">${r.description}</span>` : null}
+                    </div>
+                    <sl-schema .schema=${r.content[0].schema}></sl-schema>
+                  </div>
+                `)}
+              ` : null}
+            </div>
 
             ${!this.hideCodeSamples ? html`
-              <div class="section-title">Code Samples</div>
-              <sl-code-samples
-                .operation=${op}
-                .servers=${this.servers}
-                .authState=${this.authState}
-                .securitySchemes=${this.securitySchemes}
-              ></sl-code-samples>
-            ` : null}
-
-            ${!this.hideTryIt ? html`
-              <div class="section-title">Try It</div>
-              <sl-try-it
-                .operation=${op}
-                .servers=${this.servers}
-                .securitySchemes=${this.securitySchemes}
-                .authState=${this.authState}
-                .proxyUrl=${this.proxyUrl}
-              ></sl-try-it>
-            ` : null}
+              <div class="op-code-panel">
+                <div class="op-code-sticky">
+                  <div class="section-title">Code Samples</div>
+                  <sl-code-samples
+                    .operation=${op}
+                    .servers=${this.servers}
+                    .authState=${this.authState}
+                    .securitySchemes=${this.securitySchemes}
+                  ></sl-code-samples>
+                </div>
+                ${op.responses.length > 0 ? html`
+                  <div class="op-responses-panel">
+                    <div class="section-title">Responses</div>
+                    <sl-responses .responses=${op.responses}></sl-responses>
+                  </div>
+                ` : null}
+              </div>
+            ` : html`<div></div>`}
           </div>
         ` : null}
       </div>

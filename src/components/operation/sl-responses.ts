@@ -1,5 +1,6 @@
 import { LitElement, html, css } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
+import { unsafeHTML } from 'lit/directives/unsafe-html.js';
 import { resetStyles } from '../../styles/reset.css.js';
 import type { ParsedResponse } from '../../core/types.js';
 import { sample as sampleFromSchema } from 'openapi-sampler';
@@ -89,11 +90,11 @@ export class SlResponses extends LitElement {
       }
 
       .example-block {
-        background: var(--sl-color-code-bg);
-        border: 1px solid var(--sl-color-border);
+        border: 1px solid #30363d;
         border-radius: var(--sl-radius-md);
         overflow: hidden;
         margin-bottom: var(--sl-spacing-md);
+        background: #0d1117;
       }
 
       .example-header {
@@ -101,14 +102,14 @@ export class SlResponses extends LitElement {
         align-items: center;
         justify-content: space-between;
         padding: var(--sl-spacing-sm) var(--sl-spacing-md);
-        border-bottom: 1px solid var(--sl-color-border);
-        background: var(--sl-color-surface-raised);
+        border-bottom: 1px solid #30363d;
+        background: #161b22;
       }
 
       .example-label {
         font-size: var(--sl-font-size-xs);
         font-weight: 600;
-        color: var(--sl-color-text-muted);
+        color: #8b949e;
         text-transform: uppercase;
         letter-spacing: 0.04em;
       }
@@ -116,34 +117,63 @@ export class SlResponses extends LitElement {
       .media-type-badge {
         font-family: var(--sl-font-mono);
         font-size: var(--sl-font-size-xs);
-        color: var(--sl-color-text-muted);
+        color: #8b949e;
       }
 
       pre {
+        margin: 0;
         padding: var(--sl-spacing-md);
         font-size: var(--sl-font-size-sm);
-        color: var(--sl-color-code-text);
+        font-family: var(--sl-font-mono);
+        color: #e6edf3;
+        background: #0d1117;
         overflow-x: auto;
-        line-height: 1.6;
+        line-height: 1.65;
+        max-height: 60vh;
+        overflow-y: auto;
       }
 
-      .schema-section {
-        margin-top: var(--sl-spacing-md);
-      }
+      code { font-family: inherit; }
 
-      .schema-label {
-        font-size: var(--sl-font-size-xs);
-        font-weight: 600;
-        color: var(--sl-color-text-muted);
-        text-transform: uppercase;
-        letter-spacing: 0.04em;
-        margin-bottom: var(--sl-spacing-sm);
-      }
+      /* ── JSON syntax token colors (VS Code Dark+ palette) ── */
+      .hl-key  { color: #9cdcfe; }
+      .hl-str  { color: #ce9178; }
+      .hl-num  { color: #b5cea8; }
+      .hl-kw   { color: #569cd6; }
     `,
   ];
 
   @property({ type: Array }) responses: ParsedResponse[] = [];
   @state() private _activeTab = 0;
+
+  private _esc(s: string): string {
+    return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  }
+
+  private _highlightJson(code: string): string {
+    const rules: [RegExp, string][] = [
+      [/^"(?:[^"\\]|\\.)*"(?=\s*:)/, 'hl-key'],
+      [/^"(?:[^"\\]|\\.)*"/, 'hl-str'],
+      [/^\b(?:true|false|null)\b/, 'hl-kw'],
+      [/^-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?/, 'hl-num'],
+    ];
+    let out = '';
+    let rem = code;
+    while (rem.length > 0) {
+      let hit = false;
+      for (const [re, cls] of rules) {
+        const m = re.exec(rem);
+        if (m && m.index === 0) {
+          out += `<span class="${cls}">${this._esc(m[0])}</span>`;
+          rem = rem.slice(m[0].length);
+          hit = true;
+          break;
+        }
+      }
+      if (!hit) { out += this._esc(rem[0]); rem = rem.slice(1); }
+    }
+    return out;
+  }
 
   private _getStatusClass(code: string): string {
     if (code === 'default') return 'status-default';
@@ -188,7 +218,6 @@ export class SlResponses extends LitElement {
     const example = this._getExample(active);
     const headers = Object.entries(active.headers);
     const mediaType = active.content[0]?.mediaType;
-    const schema = active.content[0]?.schema;
 
     return html`
       <div class="status-tabs">
@@ -221,14 +250,7 @@ export class SlResponses extends LitElement {
               <span class="example-label">Response Example</span>
               ${mediaType ? html`<span class="media-type-badge">${mediaType}</span>` : null}
             </div>
-            <pre><code>${example}</code></pre>
-          </div>
-        ` : null}
-
-        ${schema ? html`
-          <div class="schema-section">
-            <div class="schema-label">Schema</div>
-            <sl-schema .schema=${schema}></sl-schema>
+            <pre><code>${unsafeHTML(this._highlightJson(example))}</code></pre>
           </div>
         ` : null}
       </div>
