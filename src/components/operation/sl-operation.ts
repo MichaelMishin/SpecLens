@@ -148,8 +148,8 @@ export class SlOperation extends LitElement {
       }
 
       .op-responses-panel {
-        margin-top: var(--sl-spacing-lg);
-        padding-top: var(--sl-spacing-lg);
+        margin-top: var(--sl-spacing-2xl);
+        padding-top: var(--sl-spacing-xl);
         border-top: 1px solid var(--sl-color-border);
       }
 

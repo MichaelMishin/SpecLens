@@ -242,10 +242,29 @@ export class SlCodeSamples extends LitElement {
 
       .tabs {
         display: flex;
-        flex-wrap: wrap;
-        gap: 0;
+        align-items: stretch;
         border-bottom: 1px solid #30363d;
         background: #161b22;
+        position: relative;
+      }
+
+      /* Hidden measurement proxy — all tabs rendered off-screen at natural width */
+      .tabs-measure {
+        position: absolute;
+        top: 0;
+        left: 0;
+        pointer-events: none;
+        visibility: hidden;
+        display: flex;
+        white-space: nowrap;
+        user-select: none;
+      }
+
+      .tabs-inner {
+        display: flex;
+        flex: 1;
+        min-width: 0;
+        overflow: hidden;
       }
 
       .tab {
@@ -257,6 +276,7 @@ export class SlCodeSamples extends LitElement {
         font-weight: 500;
         color: #8b949e;
         white-space: nowrap;
+        flex-shrink: 0;
         border-bottom: 2px solid transparent;
         transition: all var(--sl-transition-fast);
         cursor: pointer;
@@ -284,6 +304,78 @@ export class SlCodeSamples extends LitElement {
 
       .tab.spec-sample {
         border-left: 1px solid #30363d;
+      }
+
+      .tabs-more-wrap {
+        flex-shrink: 0;
+        position: relative;
+        border-left: 1px solid #30363d;
+        display: flex;
+        align-items: stretch;
+      }
+
+      .tabs-more-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        padding: var(--sl-spacing-sm) var(--sl-spacing-md);
+        font-size: var(--sl-font-size-xs);
+        font-weight: 500;
+        color: #8b949e;
+        white-space: nowrap;
+        cursor: pointer;
+        background: transparent;
+        border: none;
+        border-bottom: 2px solid transparent;
+        transition: all var(--sl-transition-fast);
+      }
+
+      .tabs-more-btn:hover,
+      .tabs-more-btn.open {
+        color: #e6edf3;
+        background: rgba(255,255,255,0.04);
+      }
+
+      .tabs-dropdown {
+        position: absolute;
+        top: calc(100% + 4px);
+        right: 0;
+        z-index: 100;
+        background: #1c2128;
+        border: 1px solid #30363d;
+        border-radius: var(--sl-radius-md);
+        padding: 4px;
+        min-width: 148px;
+        box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+      }
+
+      .dropdown-item {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        width: 100%;
+        padding: 6px 10px;
+        border-radius: var(--sl-radius-sm);
+        font-size: var(--sl-font-size-xs);
+        font-weight: 500;
+        color: #8b949e;
+        white-space: nowrap;
+        cursor: pointer;
+        background: transparent;
+        border: none;
+        text-align: left;
+        box-sizing: border-box;
+        transition: all var(--sl-transition-fast);
+      }
+
+      .dropdown-item:hover {
+        color: #e6edf3;
+        background: rgba(255,255,255,0.06);
+      }
+
+      .dropdown-item.active {
+        color: #e6edf3;
+        background: rgba(88,166,255,0.12);
       }
 
       .code-wrapper {
@@ -328,7 +420,15 @@ export class SlCodeSamples extends LitElement {
         line-height: 1.65;
         max-height: 60vh;
         overflow-y: auto;
+        scrollbar-width: thin;
+        scrollbar-color: #484f58 #0d1117;
       }
+
+      pre::-webkit-scrollbar { width: 6px; height: 6px; }
+      pre::-webkit-scrollbar-track { background: #0d1117; }
+      pre::-webkit-scrollbar-thumb { background: #484f58; border-radius: 3px; }
+      pre::-webkit-scrollbar-thumb:hover { background: #6e7681; }
+      pre::-webkit-scrollbar-corner { background: #0d1117; }
 
       code { font-family: inherit; }
 
@@ -357,8 +457,22 @@ export class SlCodeSamples extends LitElement {
   @state() private _activeTab = 0;
   @state() private _snippets = new Map<string, string>();
   @state() private _copied = false;
+  @state() private _overflowStart = Infinity;
+  @state() private _moreOpen = false;
 
   private _allTabs: { id: string; label: string; isSpec: boolean }[] = [];
+  private _tabNaturalWidths: number[] = [];
+  private _ro?: ResizeObserver;
+  private _prevOperation: ParsedOperation | null = null;
+  private _dropdownPortal: HTMLDivElement | null = null;
+  private _docClickHandler: EventListener | null = null;
+
+  override disconnectedCallback() {
+    super.disconnectedCallback();
+    this._ro?.disconnect();
+    this._ro = undefined;
+    this._closeDropdownPortal();
+  }
 
   override async willUpdate() {
     if (!this.operation) return;
@@ -374,6 +488,183 @@ export class SlCodeSamples extends LitElement {
       await this._generateSnippets();
     }
   }
+
+  override updated(changed: Map<PropertyKey, unknown>) {
+    // Reset tab measurements when the operation changes
+    if (changed.has('operation') && this.operation !== this._prevOperation) {
+      this._prevOperation = this.operation;
+      this._tabNaturalWidths = [];
+      this._overflowStart = Infinity;
+    }
+    // Measure proxy tab widths — runs after first render and after tab list changes
+    const needsMeasure =
+      this._tabNaturalWidths.length === 0 ||
+      this._tabNaturalWidths.length !== this._allTabs.length;
+    if (needsMeasure && this._allTabs.length > 0) {
+      this._tabNaturalWidths = []; // clear stale widths so recompute sees them as fresh
+      requestAnimationFrame(() => this._measureTabWidths());
+    }
+  }
+
+  private _measureTabWidths() {
+    // Read from the hidden proxy row — children always render at full natural width
+    const measure = this.shadowRoot?.querySelector<HTMLElement>('.tabs-measure');
+    if (!measure) return;
+    const proxyTabs = Array.from(measure.querySelectorAll<HTMLElement>('.tab'));
+    this._tabNaturalWidths = proxyTabs.map(el => el.getBoundingClientRect().width);
+
+    if (!this._ro) {
+      // Observe the outer .tabs bar — width is stable regardless of More-button presence
+      const tabsEl = this.shadowRoot?.querySelector<HTMLElement>('.tabs');
+      if (tabsEl) {
+        this._ro = new ResizeObserver(() => this._recomputeOverflow());
+        this._ro.observe(tabsEl);
+      }
+    }
+    this._recomputeOverflow();
+  }
+
+  private _recomputeOverflow() {
+    const tabsEl = this.shadowRoot?.querySelector<HTMLElement>('.tabs');
+    if (!tabsEl || this._tabNaturalWidths.length === 0) return;
+
+    const containerW = tabsEl.getBoundingClientRect().width;
+    const totalNatural = this._tabNaturalWidths.reduce((a, b) => a + b, 0);
+
+    // All tabs fit — no overflow needed
+    if (totalNatural <= containerW) {
+      if (this._overflowStart !== this._tabNaturalWidths.length) {
+        this._overflowStart = this._tabNaturalWidths.length;
+      }
+      return;
+    }
+
+    // Overflow detected: reserve space for the More button, find cut-off index
+    const MORE_BTN_W = 80;
+    const effectiveW = containerW - MORE_BTN_W;
+    let total = 0;
+    let overflowAt = 0;
+    for (let i = 0; i < this._tabNaturalWidths.length; i++) {
+      total += this._tabNaturalWidths[i];
+      if (total > effectiveW) {
+        overflowAt = i;
+        break;
+      }
+      overflowAt = i + 1;
+    }
+    if (overflowAt !== this._overflowStart) {
+      this._overflowStart = overflowAt;
+    }
+  }
+
+  private _toggleMore(e: Event) {
+    e.stopPropagation();
+    if (this._dropdownPortal) {
+      this._closeDropdownPortal();
+    } else {
+      this._openDropdownPortal(e.currentTarget as HTMLElement);
+    }
+  }
+
+  private _openDropdownPortal(triggerBtn: HTMLElement) {
+    this._closeDropdownPortal();
+
+    const rect = triggerBtn.getBoundingClientRect();
+    const portal = document.createElement('div');
+
+    Object.assign(portal.style, {
+      position: 'fixed',
+      top: `${rect.bottom + 4}px`,
+      right: `${Math.round(window.innerWidth - rect.right)}px`,
+      zIndex: '2147483647',
+      background: '#1c2128',
+      border: '1px solid #30363d',
+      borderRadius: '6px',
+      padding: '4px',
+      minWidth: '148px',
+      boxShadow: '0 8px 24px rgba(0,0,0,0.5)',
+      fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+      fontSize: '0.75rem',
+    });
+
+    this._allTabs.slice(this._overflowStart).forEach((tab, ii) => {
+      const tabIndex = this._overflowStart + ii;
+      const isActive = tabIndex === this._activeTab;
+
+      const item = document.createElement('button');
+      item.textContent = tab.label + (tab.isSpec ? ' ✦' : '');
+      Object.assign(item.style, {
+        display: 'block',
+        width: '100%',
+        padding: '6px 10px',
+        borderRadius: '4px',
+        fontSize: '0.75rem',
+        fontWeight: '500',
+        color: isActive ? '#e6edf3' : '#8b949e',
+        whiteSpace: 'nowrap',
+        cursor: 'pointer',
+        background: isActive ? 'rgba(88,166,255,0.12)' : 'transparent',
+        border: 'none',
+        textAlign: 'left',
+        boxSizing: 'border-box',
+        fontFamily: 'inherit',
+      });
+
+      item.addEventListener('mouseenter', () => {
+        if (tabIndex !== this._activeTab) {
+          item.style.color = '#e6edf3';
+          item.style.background = 'rgba(255,255,255,0.06)';
+        }
+      });
+      item.addEventListener('mouseleave', () => {
+        if (tabIndex !== this._activeTab) {
+          item.style.color = '#8b949e';
+          item.style.background = 'transparent';
+        }
+      });
+      item.addEventListener('click', (ev) => {
+        ev.stopPropagation();
+        this._activeTab = tabIndex;
+        this._copied = false;
+        this._closeDropdownPortal();
+      });
+
+      portal.appendChild(item);
+    });
+
+    document.body.appendChild(portal);
+    this._dropdownPortal = portal;
+    this._moreOpen = true;
+
+    // Close on any outside click or scroll, deferred so the current click doesn't immediately close it
+    const handler = (ev: Event) => {
+      if (ev.type === 'scroll' || !portal.contains(ev.target as Node)) {
+        this._closeDropdownPortal();
+      }
+    };
+    setTimeout(() => {
+      document.addEventListener('click', handler, { capture: true });
+      document.addEventListener('scroll', handler, { capture: true, once: true });
+      this._docClickHandler = handler;
+    }, 0);
+  }
+
+  private _closeDropdownPortal() {
+    if (this._dropdownPortal) {
+      this._dropdownPortal.remove();
+      this._dropdownPortal = null;
+    }
+    if (this._docClickHandler) {
+      document.removeEventListener('click', this._docClickHandler, { capture: true });
+      document.removeEventListener('scroll', this._docClickHandler, { capture: true });
+      this._docClickHandler = null;
+    }
+    if (this._moreOpen) {
+      this._moreOpen = false;
+    }
+  }
+
+  private _onRootClick(_e: Event) { /* no-op — kept for template compat */ }
 
   private async _generateSnippets() {
     const har = this._buildHar();
@@ -430,26 +721,38 @@ export class SlCodeSamples extends LitElement {
     const url = `${baseUrl}${path}`;
 
     // Query params
-    const queryString = this.operation.parameters
+    const queryString: Array<{ name: string; value: string }> = this.operation.parameters
       .filter(p => p.in === 'query' && p.example !== undefined)
       .map(p => ({ name: p.name, value: String(p.example) }));
 
     // Headers
     const headers: Array<{ name: string; value: string }> = [];
 
-    // Auth headers
-    for (const secReq of this.operation.security) {
+    // Auth headers/query params — use first matching security requirement (alternatives are OR-ed)
+    const secReq = this.operation.security[0];
+    if (secReq) {
       for (const schemeName of Object.keys(secReq)) {
         const scheme = this.securitySchemes.find(s => s.key === schemeName);
         if (!scheme) continue;
 
-        if (scheme.type === 'apiKey' && scheme.in === 'header' && scheme.name) {
-          const val = this.authState.apiKeys[schemeName];
-          if (val) headers.push({ name: scheme.name, value: val });
-        }
-        if (scheme.type === 'http' && scheme.scheme === 'bearer') {
-          const val = this.authState.bearerTokens[schemeName];
-          if (val) headers.push({ name: 'Authorization', value: `Bearer ${val}` });
+        if (scheme.type === 'apiKey' && scheme.name) {
+          const val = this.authState.apiKeys[schemeName] || '<YOUR_API_KEY>';
+          if (scheme.in === 'header') {
+            headers.push({ name: scheme.name, value: val });
+          } else if (scheme.in === 'query') {
+            queryString.push({ name: scheme.name, value: val });
+          }
+        } else if (scheme.type === 'http') {
+          if (scheme.scheme === 'bearer') {
+            const val = this.authState.bearerTokens[schemeName] || '<YOUR_TOKEN>';
+            headers.push({ name: 'Authorization', value: `Bearer ${val}` });
+          } else if (scheme.scheme === 'basic') {
+            const val = this.authState.apiKeys[schemeName] || 'username:password';
+            headers.push({ name: 'Authorization', value: `Basic ${btoa(val)}` });
+          }
+        } else if (scheme.type === 'oauth2' || scheme.type === 'openIdConnect') {
+          const val = this.authState.bearerTokens[schemeName] || '<YOUR_ACCESS_TOKEN>';
+          headers.push({ name: 'Authorization', value: `Bearer ${val}` });
         }
       }
     }
@@ -527,22 +830,44 @@ export class SlCodeSamples extends LitElement {
 
     const activeTabInfo = this._allTabs[this._activeTab];
     const code = activeTabInfo ? (this._snippets.get(activeTabInfo.id) ?? 'Loading…') : '';
+    const hasOverflow = this._overflowStart < this._allTabs.length;
 
     return html`
       <div class="code-samples">
         <div class="tabs">
-          ${this._allTabs.map((tab, i) => html`
-            <button
-              class="tab ${i === this._activeTab ? 'active' : ''} ${tab.isSpec ? 'spec-sample' : ''}"
-              @click=${() => { this._activeTab = i; this._copied = false; }}
-            >${this._getIcon(tab.id)}${tab.label}${tab.isSpec ? ' ✦' : ''}</button>
-          `)}
+          <!-- Hidden proxy: all tabs at natural size, used only for measurement -->
+          <div class="tabs-measure" aria-hidden="true">
+            ${this._allTabs.map(tab => html`
+              <button class="tab ${tab.isSpec ? 'spec-sample' : ''}" tabindex="-1">
+                ${this._getIcon(tab.id)}${tab.label}${tab.isSpec ? ' ✦' : ''}
+              </button>
+            `)}
+          </div>
+          <!-- Visible tabs: the subset that fits -->
+          <div class="tabs-inner">
+            ${this._allTabs.slice(0, this._overflowStart).map((tab, i) => html`
+              <button
+                class="tab ${i === this._activeTab ? 'active' : ''} ${tab.isSpec ? 'spec-sample' : ''}"
+                @click=${() => { this._activeTab = i; this._copied = false; this._closeDropdownPortal(); }}
+              >${this._getIcon(tab.id)}${tab.label}${tab.isSpec ? ' ✦' : ''}</button>
+            `)}
+          </div>
+          ${hasOverflow ? html`
+            <div class="tabs-more-wrap">
+              <button class="tabs-more-btn ${this._moreOpen ? 'open' : ''}" @click=${this._toggleMore}>
+                More
+                <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1.5">
+                  <path d="${this._moreOpen ? 'M1 7l4-4 4 4' : 'M1 3l4 4 4-4'}" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+              </button>
+            </div>
+          ` : null}
         </div>
         <div class="code-wrapper">
           <button class="copy-btn ${this._copied ? 'copied' : ''}" @click=${this._copy}>
             ${this._copied ? '✓ Copied' : 'Copy'}
           </button>
-          <pre><code>${unsafeHTML(this._highlightCode(code, activeTabInfo.id))}</code></pre>
+          <pre><code>${unsafeHTML(this._highlightCode(code, activeTabInfo?.id ?? ''))}</code></pre>
         </div>
       </div>
     `;
