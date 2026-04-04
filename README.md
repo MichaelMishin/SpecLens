@@ -2,14 +2,14 @@
 
 A modern, lightweight OpenAPI documentation renderer built as a web component. Drop it into any page via CDN — no build step required.
 
-> **Status:** Early development (v0.1.0)
+> **Version:** 0.1.2
 
 ## Features
 
 - **Zero-dependency usage** — single script tag, works in any framework or plain HTML
 - **Web component** — `<spec-lens>` custom element with Shadow DOM style isolation
-- **Try It console** — live API request execution from the browser
-- **Code samples** — generated snippets for cURL, JavaScript, Python, and more
+- **Try It console** — live API request execution with support for JSON, `multipart/form-data`, and `application/x-www-form-urlencoded` bodies
+- **Code samples** — generated snippets for cURL, JavaScript, Python, Node.js, Go, Java, PHP, Ruby, and C#
 - **Full-text search** — fast in-page search powered by MiniSearch
 - **Light & dark themes** — auto-detects system preference, overridable via CSS custom properties
 - **OpenAPI 3.x support** — parsed and validated by `@apidevtools/swagger-parser`
