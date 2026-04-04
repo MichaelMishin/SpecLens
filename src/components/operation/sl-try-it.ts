@@ -291,7 +291,7 @@ export class SlTryIt extends LitElement {
     const server = serverObjs[this._selectedServer] ?? serverObjs[0];
     if (!server) return this.operation.path;
 
-    let baseUrl = server.url;
+    let baseUrl = server.url.replace(/\/+$/, '');
     // Replace server variables with defaults
     for (const [key, val] of Object.entries(server.variables)) {
       baseUrl = baseUrl.replace(`{${key}}`, val.default);
