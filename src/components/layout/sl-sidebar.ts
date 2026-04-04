@@ -158,6 +158,7 @@ export class SlSidebar extends LitElement {
       .intro-link:hover {
         background: var(--sl-color-sidebar-hover);
         color: var(--sl-color-text);
+        text-decoration: none;
       }
 
       .intro-link.active {
@@ -199,6 +200,7 @@ export class SlSidebar extends LitElement {
       .op-link:hover {
         background: var(--sl-color-sidebar-hover);
         color: var(--sl-color-text);
+        text-decoration: none;
       }
 
       .op-link.active {

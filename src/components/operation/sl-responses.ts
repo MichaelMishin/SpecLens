@@ -131,7 +131,15 @@ export class SlResponses extends LitElement {
         line-height: 1.65;
         max-height: 60vh;
         overflow-y: auto;
+        scrollbar-width: thin;
+        scrollbar-color: #484f58 #0d1117;
       }
+
+      pre::-webkit-scrollbar { width: 6px; height: 6px; }
+      pre::-webkit-scrollbar-track { background: #0d1117; }
+      pre::-webkit-scrollbar-thumb { background: #484f58; border-radius: 3px; }
+      pre::-webkit-scrollbar-thumb:hover { background: #6e7681; }
+      pre::-webkit-scrollbar-corner { background: #0d1117; }
 
       code { font-family: inherit; }
 

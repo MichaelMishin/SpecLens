@@ -70,6 +70,7 @@ export class SlTryIt extends LitElement {
       }
 
       input[type="text"],
+      input[type="file"],
       select {
         flex: 1;
         padding: 6px 10px;
@@ -83,8 +84,35 @@ export class SlTryIt extends LitElement {
         transition: border-color var(--sl-transition-fast);
       }
 
+      input[type="file"] {
+        padding: 4px 6px;
+        cursor: pointer;
+      }
+
       input:focus, select:focus {
         border-color: var(--sl-color-primary);
+      }
+
+      .content-type-badge {
+        display: inline-block;
+        font-family: var(--sl-font-mono);
+        font-size: var(--sl-font-size-xs);
+        font-weight: 400;
+        text-transform: none;
+        letter-spacing: 0;
+        color: var(--sl-color-text-muted);
+        background: var(--sl-color-surface-raised);
+        border: 1px solid var(--sl-color-border);
+        border-radius: var(--sl-radius-sm);
+        padding: 1px 6px;
+        margin-left: var(--sl-spacing-sm);
+        vertical-align: middle;
+      }
+
+      .no-schema-note {
+        font-size: var(--sl-font-size-sm);
+        color: var(--sl-color-text-muted);
+        padding: var(--sl-spacing-xs) 0;
       }
 
       input::placeholder {
@@ -191,7 +219,15 @@ export class SlTryIt extends LitElement {
         line-height: 1.6;
         max-height: 400px;
         overflow-y: auto;
+        scrollbar-width: thin;
+        scrollbar-color: var(--sl-color-border) transparent;
       }
+
+      .response-body pre::-webkit-scrollbar { width: 6px; height: 6px; }
+      .response-body pre::-webkit-scrollbar-track { background: transparent; }
+      .response-body pre::-webkit-scrollbar-thumb { background: var(--sl-color-border); border-radius: 3px; }
+      .response-body pre::-webkit-scrollbar-thumb:hover { background: var(--sl-color-border-hover); }
+      .response-body pre::-webkit-scrollbar-corner { background: transparent; }
 
       .response-headers {
         padding: 0 var(--sl-spacing-lg) var(--sl-spacing-md);
@@ -249,6 +285,7 @@ export class SlTryIt extends LitElement {
 
   @state() private _paramValues: Record<string, string> = {};
   @state() private _bodyValue = '';
+  @state() private _formFields: Record<string, string | File> = {};
   @state() private _selectedServer = 0;
   @state() private _response: TryItResponse | null = null;
   @state() private _loading = false;
@@ -275,7 +312,17 @@ export class SlTryIt extends LitElement {
     // Pre-fill body
     if (this.operation.requestBody) {
       const content = this.operation.requestBody.content[0];
-      if (content?.schema) {
+      if (content && this._isFormMediaType(content.mediaType) && content.schema) {
+        // Pre-fill individual form fields from schema examples/defaults
+        const schema = content.schema as Record<string, unknown>;
+        const props = (schema['properties'] ?? {}) as Record<string, Record<string, unknown>>;
+        const fields: Record<string, string> = {};
+        for (const [key, prop] of Object.entries(props)) {
+          if (prop['example'] !== undefined) fields[key] = String(prop['example']);
+          else if (prop['default'] !== undefined) fields[key] = String(prop['default']);
+        }
+        this._formFields = fields;
+      } else if (content?.schema) {
         try {
           const sample = sampleFromSchema(content.schema as Record<string, unknown>);
           this._bodyValue = JSON.stringify(sample, null, 2);
@@ -284,6 +331,15 @@ export class SlTryIt extends LitElement {
         }
       }
     }
+  }
+
+  private _isFormMediaType(mediaType: string): boolean {
+    return mediaType === 'multipart/form-data' || mediaType === 'application/x-www-form-urlencoded';
+  }
+
+  private _isFormBody(): boolean {
+    const mediaType = this.operation.requestBody?.content[0]?.mediaType ?? '';
+    return this._isFormMediaType(mediaType);
   }
 
   private _buildUrl(): string {
@@ -349,10 +405,10 @@ export class SlTryIt extends LitElement {
       }
     }
 
-    // Content-Type for body
+    // Content-Type for body — skip for multipart/form-data (browser sets it with boundary)
     if (this.operation.requestBody) {
       const content = this.operation.requestBody.content[0];
-      if (content) {
+      if (content && content.mediaType !== 'multipart/form-data') {
         headers['Content-Type'] = content.mediaType;
       }
     }
@@ -371,13 +427,40 @@ export class SlTryIt extends LitElement {
 
     const targetUrl = this.proxyUrl ? `${this.proxyUrl}${encodeURIComponent(url)}` : url;
 
+    // Build request body based on content type
+    let requestBody: string | FormData | URLSearchParams | undefined;
+    if (hasBody) {
+      const mediaType = this.operation.requestBody!.content[0]?.mediaType ?? '';
+      if (mediaType === 'multipart/form-data') {
+        const fd = new FormData();
+        for (const [key, value] of Object.entries(this._formFields)) {
+          if (value instanceof File) {
+            fd.append(key, value, value.name);
+          } else if ((value as string).trim() !== '') {
+            fd.append(key, value as string);
+          }
+        }
+        requestBody = fd;
+      } else if (mediaType === 'application/x-www-form-urlencoded') {
+        const params = new URLSearchParams();
+        for (const [key, value] of Object.entries(this._formFields)) {
+          if (typeof value === 'string' && value.trim() !== '') {
+            params.append(key, value);
+          }
+        }
+        requestBody = params;
+      } else {
+        requestBody = this._bodyValue;
+      }
+    }
+
     const start = performance.now();
 
     try {
       const resp = await fetch(targetUrl, {
         method: this.operation.method.toUpperCase(),
         headers,
-        body: hasBody ? this._bodyValue : undefined,
+        body: requestBody,
       });
 
       const time = Math.round(performance.now() - start);
@@ -414,6 +497,56 @@ export class SlTryIt extends LitElement {
     } catch {
       return body;
     }
+  }
+
+  private _renderFormFields() {
+    const content = this.operation.requestBody!.content[0];
+    const mediaType = content.mediaType;
+    const isMultipart = mediaType === 'multipart/form-data';
+    const schema = content.schema as Record<string, unknown> | null;
+    const props = ((schema?.['properties'] ?? {}) as Record<string, Record<string, unknown>>);
+    const required: string[] = (schema?.['required'] ?? []) as string[];
+    const entries = Object.entries(props);
+
+    return html`
+      <div class="form-section">
+        <div class="form-label">
+          Request Body
+          <span class="content-type-badge">${mediaType}</span>
+        </div>
+        ${entries.length === 0 ? html`
+          <p class="no-schema-note">No schema properties defined for this content type.</p>
+        ` : entries.map(([key, prop]) => html`
+          <div class="param-input-row">
+            <div class="param-input-name">
+              ${key}
+              ${required.includes(key) ? html`<span class="req">*</span>` : null}
+            </div>
+            ${prop['format'] === 'binary' && isMultipart ? html`
+              <input
+                type="file"
+                @change=${(e: Event) => {
+                  const file = (e.target as HTMLInputElement).files?.[0];
+                  if (file) {
+                    this._formFields = { ...this._formFields, [key]: file };
+                  } else {
+                    const { [key]: _removed, ...rest } = this._formFields;
+                    this._formFields = rest;
+                  }
+                }}
+              />
+            ` : html`
+              <input
+                type="text"
+                placeholder="${(prop['description'] as string | undefined) ?? key}"
+                .value=${typeof this._formFields[key] === 'string' ? (this._formFields[key] as string) : ''}
+                @input=${(e: Event) => { this._formFields = { ...this._formFields, [key]: (e.target as HTMLInputElement).value }; }}
+              />
+            `}
+          </div>
+        `)}
+      </div>
+    `;
   }
 
   override render() {
@@ -478,13 +611,15 @@ export class SlTryIt extends LitElement {
         ` : null}
 
         ${this.operation.requestBody ? html`
-          <div class="form-section">
-            <div class="form-label">Request Body</div>
-            <textarea
-              .value=${this._bodyValue}
-              @input=${(e: Event) => { this._bodyValue = (e.target as HTMLTextAreaElement).value; }}
-            ></textarea>
-          </div>
+          ${this._isFormBody() ? this._renderFormFields() : html`
+            <div class="form-section">
+              <div class="form-label">Request Body</div>
+              <textarea
+                .value=${this._bodyValue}
+                @input=${(e: Event) => { this._bodyValue = (e.target as HTMLTextAreaElement).value; }}
+              ></textarea>
+            </div>
+          `}
         ` : null}
 
         <div class="actions-bar">
