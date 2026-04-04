@@ -1,7 +1,7 @@
 import { LitElement, html, css } from 'lit';
 import { customElement, property, state, query } from 'lit/decorators.js';
 import { resetStyles } from '../../styles/reset.css.js';
-import type { TagGroup, SearchEngine, SearchResult } from '../../core/types.js';
+import type { TagGroup, SearchEngine, SearchResult, SecurityScheme } from '../../core/types.js';
 
 @customElement('sl-sidebar')
 export class SlSidebar extends LitElement {
@@ -246,6 +246,31 @@ export class SlSidebar extends LitElement {
         color: var(--sl-color-text-muted);
         text-align: center;
       }
+
+      /* ── Embed-mode auth button ───────────── */
+      .sidebar-auth-btn {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin: var(--sl-spacing-sm) var(--sl-spacing-md) var(--sl-spacing-md);
+        padding: 8px 14px;
+        border-radius: var(--sl-radius-md);
+        border: 1.5px solid var(--sl-color-border);
+        color: var(--sl-color-text-secondary);
+        background: transparent;
+        font-size: var(--sl-font-size-sm);
+        font-weight: 600;
+        cursor: pointer;
+        transition: all var(--sl-transition-fast);
+        flex-shrink: 0;
+        width: calc(100% - var(--sl-spacing-xl));
+      }
+
+      .sidebar-auth-btn:hover {
+        border-color: var(--sl-color-primary);
+        color: var(--sl-color-primary);
+        background: var(--sl-color-sidebar-active);
+      }
     `,
   ];
 
@@ -253,6 +278,8 @@ export class SlSidebar extends LitElement {
   @property({ type: String }) activeOperationId = '';
   @property({ type: Boolean, reflect: true }) open = false;
   @property({ type: Object }) searchEngine: SearchEngine | null = null;
+  @property() layout: 'page' | 'embed' = 'page';
+  @property({ type: Array }) securitySchemes: SecurityScheme[] = [];
 
   @state() private _searchQuery = '';
   @state() private _searchResults: SearchResult[] = [];
@@ -349,6 +376,19 @@ export class SlSidebar extends LitElement {
             `)}
           `}
         </div>
+
+        ${this.layout === 'embed' && this.securitySchemes.length > 0 ? html`
+          <button
+            class="sidebar-auth-btn"
+            @click=${() => this.dispatchEvent(new CustomEvent('toggle-auth', { bubbles: true, composed: true }))}
+          >
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="3" y="7" width="10" height="7" rx="1.5"/>
+              <path d="M5.5 7V5a2.5 2.5 0 015 0v2"/>
+            </svg>
+            Authorize
+          </button>
+        ` : null}
       </nav>
     `;
   }

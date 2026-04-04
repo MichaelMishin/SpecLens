@@ -536,6 +536,12 @@ export class SpecLensElement extends LitElement {
           padding: var(--sl-spacing-md);
         }
       }
+
+      /* ── Embed mode ──────────────────────── */
+      :host([layout="embed"]) {
+        --sl-header-height: 0px;
+        min-height: unset;
+      }
     `,
   ];
 
@@ -553,6 +559,9 @@ export class SpecLensElement extends LitElement {
 
   @property({ type: Boolean, attribute: 'hide-code-samples' })
   hideCodeSamples = false;
+
+  @property({ reflect: true, attribute: 'layout' })
+  layout: 'page' | 'embed' = 'page';
 
   config: SpecLensConfig = {};
 
@@ -690,17 +699,27 @@ export class SpecLensElement extends LitElement {
     this._tryItOperation = e.detail;
   }
 
+  /** Set the color theme programmatically. Useful in embed mode where the header is hidden. */
+  setTheme(preference: 'light' | 'dark' | 'auto'): void {
+    this.theme = preference;
+  }
+
   override render() {
     return html`
       <div class="sl-root" data-theme=${this._themeManager?.resolved ?? 'light'}>
         ${this._spec ? html`
-          <sl-header
-            .spec=${this._spec}
-            .authOpen=${this._authOpen}
-            @toggle-theme=${this._handleThemeToggle}
-            @toggle-sidebar=${() => this._sidebarOpen = !this._sidebarOpen}
-            @toggle-auth=${() => this._authOpen = !this._authOpen}
-          ></sl-header>
+          ${this.layout === 'page' ? html`
+            <sl-header
+              .spec=${this._spec}
+              .authOpen=${this._authOpen}
+              @toggle-theme=${this._handleThemeToggle}
+              @toggle-sidebar=${() => this._sidebarOpen = !this._sidebarOpen}
+              @toggle-auth=${() => this._authOpen = !this._authOpen}
+            >
+              <slot name="logo" slot="logo"></slot>
+              <slot name="header-actions" slot="header-actions"></slot>
+            </sl-header>
+          ` : null}
 
           <div class="sl-body">
             <sl-sidebar
@@ -708,9 +727,12 @@ export class SpecLensElement extends LitElement {
               .activeOperationId=${this._activeOperationId}
               .open=${this._sidebarOpen}
               .searchEngine=${this._search}
+              .layout=${this.layout}
+              .securitySchemes=${this._spec.securitySchemes}
               @navigate=${(e: CustomEvent<string>) => this._router?.navigateTo(e.detail)}
               @navigate-intro=${() => this._scrollToIntro()}
               @close-sidebar=${() => this._sidebarOpen = false}
+              @toggle-auth=${() => this._authOpen = !this._authOpen}
             ></sl-sidebar>
 
             <main class="sl-main">

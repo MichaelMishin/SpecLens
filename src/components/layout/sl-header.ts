@@ -143,8 +143,10 @@ export class SlHeader extends LitElement {
         </button>
 
         <div class="title-area">
-          <span class="title">${this.spec.title}</span>
-          <span class="version">${this.spec.version}</span>
+          <slot name="logo">
+            <span class="title">${this.spec.title}</span>
+            <span class="version">${this.spec.version}</span>
+          </slot>
         </div>
 
         <div class="spacer"></div>
@@ -162,6 +164,8 @@ export class SlHeader extends LitElement {
               Authorize
             </button>
           ` : null}
+
+          <slot name="header-actions"></slot>
 
           <button class="action-btn" @click=${() => this.dispatchEvent(new CustomEvent('toggle-theme'))} title="Toggle theme">
             <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5">

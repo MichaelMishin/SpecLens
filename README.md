@@ -2,7 +2,7 @@
 
 A modern, lightweight OpenAPI documentation renderer built as a web component. Drop it into any page via CDN — no build step required.
 
-> **Version:** 0.1.2
+> **Version:** 0.2.0
 
 ## Features
 
@@ -42,6 +42,58 @@ SpecLens.init('#docs', {
 
 ```bash
 npm install @michaelmishin/speclens
+```
+
+## Customization
+
+### Layout Modes
+
+Use the `layout` attribute to control how SpecLens integrates with the surrounding page.
+
+| Value | Behavior |
+|-------|----------|
+| `page` (default) | Renders its own sticky header with title, Authorize, and theme toggle. Best for standalone CDN use. |
+| `embed` | Suppresses the header entirely. The sidebar starts at the top of the container, and an Authorize button appears at the bottom of the sidebar when the API has security schemes. Use this when embedding inside an existing app that already has a navbar. |
+
+```html
+<!-- Standalone page -->
+<spec-lens layout="page" spec-url="/openapi.json"></spec-lens>
+
+<!-- Inside an existing app with its own navbar -->
+<spec-lens layout="embed" spec-url="/openapi.json"></spec-lens>
+```
+
+### Named Slots (page mode)
+
+In `layout="page"` mode, the header exposes two named slots for customization:
+
+| Slot | Replaces |
+|------|----------|
+| `logo` | The API title + version badge in the header |
+| `header-actions` | Additional items in the header action row, placed before the theme toggle |
+
+```html
+<spec-lens spec-url="/openapi.json">
+  <!-- Replace the title/version with your own logo -->
+  <img slot="logo" src="/my-logo.svg" alt="My API" height="28" />
+
+  <!-- Add extra nav items next to the theme toggle -->
+  <a slot="header-actions" href="/changelog">Changelog</a>
+</spec-lens>
+```
+
+### Programmatic Theme Control
+
+In `layout="embed"` mode the theme toggle button is not visible. Use the `setTheme()` method or the `theme` attribute to control it from the host app:
+
+```js
+const docs = document.querySelector('spec-lens');
+
+// Programmatic method
+docs.setTheme('dark');   // 'light' | 'dark' | 'auto'
+
+// Or set the attribute
+docs.setAttribute('theme', 'dark');
 ```
 
 ## Theming

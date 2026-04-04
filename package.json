@@ -1,6 +1,6 @@
 {
   "name": "@michaelmishin/speclens",
-  "version": "0.1.2",
+  "version": "0.2.0",
   "description": "A modern, CDN-distributable OpenAPI documentation renderer with Try It console, code samples, and full-text search.",
   "license": "MIT",
   "repository": {
