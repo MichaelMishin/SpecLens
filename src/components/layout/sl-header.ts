@@ -1,7 +1,7 @@
 import { LitElement, html, css } from 'lit';
-import { customElement, property } from 'lit/decorators.js';
+import { customElement, property, state, query as queryEl } from 'lit/decorators.js';
 import { resetStyles } from '../../styles/reset.css.js';
-import type { ParsedSpec } from '../../core/types.js';
+import type { ParsedSpec, SearchEngine, UnifiedSearchResult } from '../../core/types.js';
 
 @customElement('sl-header')
 export class SlHeader extends LitElement {
@@ -67,7 +67,114 @@ export class SlHeader extends LitElement {
         white-space: nowrap;
       }
 
+      /* ── Nav Tabs ─────────────────────── */
+      .nav-tabs {
+        display: flex;
+        align-items: stretch;
+        align-self: stretch;
+        gap: 2px;
+        margin-left: var(--sl-spacing-lg);
+      }
+
+      .nav-tab {
+        position: relative;
+        display: flex;
+        align-items: center;
+        gap: 5px;
+        padding: 0 var(--sl-spacing-md);
+        font-size: var(--sl-font-size-sm);
+        font-weight: 600;
+        color: var(--sl-color-text-muted);
+        cursor: pointer;
+        border: none;
+        background: none;
+        transition: color var(--sl-transition-fast);
+        white-space: nowrap;
+      }
+
+      .nav-tab:hover {
+        color: var(--sl-color-text);
+      }
+
+      .nav-tab.active {
+        color: var(--sl-color-primary);
+      }
+
+      .nav-tab.active::after {
+        content: '';
+        position: absolute;
+        bottom: 0;
+        left: var(--sl-spacing-sm);
+        right: var(--sl-spacing-sm);
+        height: 2px;
+        background: var(--sl-color-primary);
+        border-radius: 2px 2px 0 0;
+      }
+
+      @media (max-width: 768px) {
+        .nav-tabs {
+          margin-left: var(--sl-spacing-sm);
+          gap: 0;
+        }
+        .nav-tab { padding: 0 var(--sl-spacing-sm); font-size: var(--sl-font-size-xs); }
+        .nav-tab svg { display: none; }
+      }
+
       .spacer { flex: 1; }
+
+      /* ── Search ────────────────────────── */
+      .search-wrapper {
+        position: relative;
+      }
+
+      .search-trigger {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        height: 34px;
+        padding: 0 12px;
+        border-radius: var(--sl-radius-md);
+        border: 1px solid var(--sl-color-border);
+        background: var(--sl-color-bg);
+        color: var(--sl-color-text-muted);
+        font-size: var(--sl-font-size-sm);
+        cursor: pointer;
+        transition: all var(--sl-transition-fast);
+        min-width: 200px;
+      }
+
+      .search-trigger:hover {
+        border-color: var(--sl-color-primary);
+        color: var(--sl-color-text-secondary);
+      }
+
+      .search-trigger .search-placeholder {
+        flex: 1;
+        text-align: left;
+      }
+
+      .search-shortcut {
+        font-size: 0.625rem;
+        padding: 1px 5px;
+        border-radius: 3px;
+        background: var(--sl-color-surface-raised);
+        border: 1px solid var(--sl-color-border);
+        color: var(--sl-color-text-muted);
+        font-family: var(--sl-font-mono);
+      }
+
+      @media (max-width: 768px) {
+        .search-trigger {
+          min-width: 36px;
+          width: 36px;
+          padding: 0;
+          justify-content: center;
+        }
+        .search-trigger .search-placeholder,
+        .search-trigger .search-shortcut {
+          display: none;
+        }
+      }
 
       .actions {
         display: flex;
@@ -130,6 +237,8 @@ export class SlHeader extends LitElement {
 
   @property({ type: Object }) spec: ParsedSpec | null = null;
   @property({ type: Boolean }) authOpen = false;
+  @property() activeTab: 'api' | 'guides' = 'api';
+  @property({ type: Boolean }) showTabs = false;
 
   override render() {
     if (!this.spec) return html``;
@@ -149,7 +258,43 @@ export class SlHeader extends LitElement {
           </slot>
         </div>
 
+        ${this.showTabs ? html`
+          <nav class="nav-tabs">
+            <button
+              class="nav-tab ${this.activeTab === 'api' ? 'active' : ''}"
+              @click=${() => this._switchTab('api')}
+            >
+              <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M2 4h12M2 8h8M2 12h10"/>
+              </svg>
+              API Reference
+            </button>
+            <button
+              class="nav-tab ${this.activeTab === 'guides' ? 'active' : ''}"
+              @click=${() => this._switchTab('guides')}
+            >
+              <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M2 3h10a2 2 0 012 2v8a1 1 0 01-1 1H5a2 2 0 01-2-2V3z"/>
+                <path d="M2 3a2 2 0 012-2h6l4 4"/>
+                <path d="M5 9h6M5 12h4"/>
+              </svg>
+              Guides
+            </button>
+          </nav>
+        ` : null}
+
         <div class="spacer"></div>
+
+        <div class="search-wrapper">
+          <button class="search-trigger" @click=${() => this.dispatchEvent(new CustomEvent('open-search'))}>
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+              <circle cx="7" cy="7" r="4.5"/>
+              <path d="M10.5 10.5L14 14" stroke-linecap="round"/>
+            </svg>
+            <span class="search-placeholder">Search…</span>
+            <span class="search-shortcut">⌘K</span>
+          </button>
+        </div>
 
         <div class="actions">
           ${this.spec.securitySchemes.length > 0 ? html`
@@ -176,5 +321,10 @@ export class SlHeader extends LitElement {
         </div>
       </div>
     `;
+  }
+
+  private _switchTab(tab: 'api' | 'guides') {
+    if (tab === this.activeTab) return;
+    this.dispatchEvent(new CustomEvent('tab-change', { detail: tab }));
   }
 }

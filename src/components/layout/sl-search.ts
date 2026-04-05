@@ -1,8 +1,7 @@
 import { LitElement, html, css } from 'lit';
 import { customElement, property, state, query } from 'lit/decorators.js';
 import { resetStyles } from '../../styles/reset.css.js';
-import type { SearchEngine } from '../../core/types.js';
-import type { SearchResult } from '../../core/types.js';
+import type { SearchEngine, UnifiedSearchResult } from '../../core/types.js';
 
 @customElement('sl-search')
 export class SlSearch extends LitElement {
@@ -161,13 +160,30 @@ export class SlSearch extends LitElement {
         color: var(--sl-color-text-muted);
         font-size: var(--sl-font-size-sm);
       }
+
+      /* ── Guide result ───────────────────── */
+      .guide-badge {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 48px;
+        min-width: 48px;
+        padding: 2px 0;
+        border-radius: var(--sl-radius-sm);
+        font-size: 0.625rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        background: var(--sl-color-bg-subtle);
+        color: var(--sl-color-text-muted);
+        border: 1px solid var(--sl-color-border);
+      }
     `,
   ];
 
   @property({ type: Object }) searchEngine: SearchEngine | null = null;
 
   @state() private _query = '';
-  @state() private _results: SearchResult[] = [];
+  @state() private _results: UnifiedSearchResult[] = [];
   @state() private _highlightIndex = 0;
 
   @query('input') private _input!: HTMLInputElement;
@@ -207,8 +223,44 @@ export class SlSearch extends LitElement {
     }
   }
 
-  private _selectResult(result: SearchResult): void {
-    this.dispatchEvent(new CustomEvent('select', { detail: result.operationId }));
+  private _selectResult(result: UnifiedSearchResult): void {
+    if (result.type === 'operation') {
+      this.dispatchEvent(new CustomEvent('select-operation', { detail: result.operationId }));
+    } else {
+      this.dispatchEvent(new CustomEvent('select-guide', { detail: result.slug }));
+    }
+  }
+
+  private _renderResult(result: UnifiedSearchResult, i: number) {
+    if (result.type === 'operation') {
+      return html`
+        <div
+          class="result-item ${i === this._highlightIndex ? 'highlighted' : ''}"
+          @click=${() => this._selectResult(result)}
+          @mouseenter=${() => this._highlightIndex = i}
+        >
+          <span class="method-badge method-${result.method}">${result.method}</span>
+          <div class="result-info">
+            <div class="result-path">${result.path}</div>
+            ${result.summary ? html`<div class="result-summary">${result.summary}</div>` : null}
+          </div>
+        </div>
+      `;
+    } else {
+      return html`
+        <div
+          class="result-item ${i === this._highlightIndex ? 'highlighted' : ''}"
+          @click=${() => this._selectResult(result)}
+          @mouseenter=${() => this._highlightIndex = i}
+        >
+          <span class="guide-badge">Guide</span>
+          <div class="result-info">
+            <div class="result-path">${result.title}</div>
+            <div class="result-summary">${result.category}</div>
+          </div>
+        </div>
+      `;
+    }
   }
 
   override render() {
@@ -222,7 +274,7 @@ export class SlSearch extends LitElement {
           </svg>
           <input
             type="text"
-            placeholder="Search endpoints, operations…"
+            placeholder="Search endpoints, guides…"
             .value=${this._query}
             @input=${this._handleInput}
           />
@@ -231,22 +283,10 @@ export class SlSearch extends LitElement {
 
         <div class="results">
           ${this._query.trim() === '' ? html`
-            <div class="empty-state">Start typing to search endpoints…</div>
+            <div class="empty-state">Start typing to search…</div>
           ` : this._results.length === 0 ? html`
             <div class="no-results">No results for "${this._query}"</div>
-          ` : this._results.map((result, i) => html`
-            <div
-              class="result-item ${i === this._highlightIndex ? 'highlighted' : ''}"
-              @click=${() => this._selectResult(result)}
-              @mouseenter=${() => this._highlightIndex = i}
-            >
-              <span class="method-badge method-${result.method}">${result.method}</span>
-              <div class="result-info">
-                <div class="result-path">${result.path}</div>
-                ${result.summary ? html`<div class="result-summary">${result.summary}</div>` : null}
-              </div>
-            </div>
-          `)}
+          ` : this._results.map((result, i) => this._renderResult(result, i))}
         </div>
       </div>
     `;

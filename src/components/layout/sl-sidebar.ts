@@ -1,7 +1,7 @@
 import { LitElement, html, css } from 'lit';
 import { customElement, property, state, query } from 'lit/decorators.js';
 import { resetStyles } from '../../styles/reset.css.js';
-import type { TagGroup, SearchEngine, SearchResult, SecurityScheme } from '../../core/types.js';
+import type { TagGroup, SearchEngine, SearchResult, UnifiedSearchResult, SecurityScheme } from '../../core/types.js';
 
 @customElement('sl-sidebar')
 export class SlSidebar extends LitElement {
@@ -293,7 +293,9 @@ export class SlSidebar extends LitElement {
   private _handleSearchInput(e: Event) {
     this._searchQuery = (e.target as HTMLInputElement).value;
     if (this.searchEngine && this._searchQuery.trim()) {
-      this._searchResults = this.searchEngine.search(this._searchQuery).slice(0, 30);
+      this._searchResults = this.searchEngine.search(this._searchQuery)
+        .filter((r): r is SearchResult => r.type === 'operation')
+        .slice(0, 30);
     } else {
       this._searchResults = [];
     }
