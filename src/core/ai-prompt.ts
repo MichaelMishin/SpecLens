@@ -1,8 +1,12 @@
 import type { ParsedOperation } from './types.js';
 
-const MAX_PROMPT_LENGTH = 6000;
+// ChatGPT and Claude both support ?q= / ?q= URL params but have URL length limits.
+// encodeURIComponent() can triple the byte count for non-ASCII.
+// ~8 000 encoded chars is safe across both platforms without server-side rejections.
+const SAFE_ENCODED_LENGTH = 8000;
 
 export type AiTarget = 'chatgpt' | 'claude';
+export type AiOpenResult = 'url' | 'clipboard';
 
 export function generateAiPrompt(op: ParsedOperation): string {
   const lines: string[] = [];
@@ -22,8 +26,9 @@ export function generateAiPrompt(op: ParsedOperation): string {
       const flags: string[] = [];
       if (p.required) flags.push('required');
       if (p.deprecated) flags.push('deprecated');
-      const type = p.schema ? (p.schema as Record<string, unknown>).type ?? 'any' : 'any';
-      const enumVals = p.schema ? (p.schema as Record<string, unknown>).enum as string[] | undefined : undefined;
+      const schema = p.schema as Record<string, unknown> | null;
+      const type = schema?.type ?? 'any';
+      const enumVals = schema?.enum as string[] | undefined;
 
       let line = `- **${p.name}** (${p.in}, ${type}${flags.length ? ', ' + flags.join(', ') : ''})`;
       if (p.description) line += `: ${p.description}`;
@@ -41,20 +46,9 @@ export function generateAiPrompt(op: ParsedOperation): string {
       lines.push(`\nContent-Type: \`${content.mediaType}\``);
       if (content.schema) {
         const schemaStr = JSON.stringify(content.schema, null, 2);
-        if (schemaStr.length < 2000) {
-          lines.push('```json');
-          lines.push(schemaStr);
-          lines.push('```');
-        } else {
-          lines.push('Schema: (large schema, key properties shown)');
-          const props = (content.schema as Record<string, unknown>).properties as Record<string, unknown> | undefined;
-          if (props) {
-            for (const [key, val] of Object.entries(props)) {
-              const t = (val as Record<string, unknown>)?.type ?? 'object';
-              lines.push(`- ${key}: ${t}`);
-            }
-          }
-        }
+        lines.push('```json');
+        lines.push(schemaStr);
+        lines.push('```');
       }
       if (content.example !== undefined) {
         lines.push(`\nExample:\n\`\`\`json\n${JSON.stringify(content.example, null, 2)}\n\`\`\``);
@@ -70,11 +64,7 @@ export function generateAiPrompt(op: ParsedOperation): string {
       for (const content of r.content) {
         if (content.schema) {
           const schemaStr = JSON.stringify(content.schema, null, 2);
-          if (schemaStr.length < 1500) {
-            lines.push(`\`${content.mediaType}\`\n\`\`\`json\n${schemaStr}\n\`\`\``);
-          } else {
-            lines.push(`\`${content.mediaType}\` — (large schema)`);
-          }
+          lines.push(`\`${content.mediaType}\`\n\`\`\`json\n${schemaStr}\n\`\`\``);
         }
       }
     }
@@ -93,22 +83,27 @@ export function generateAiPrompt(op: ParsedOperation): string {
 
   lines.push(`\nPlease help me understand this endpoint, write an example request, and explain the expected response.`);
 
-  let prompt = lines.join('\n');
-
-  // Truncate if needed to stay within safe URL length limits
-  if (prompt.length > MAX_PROMPT_LENGTH) {
-    prompt = prompt.slice(0, MAX_PROMPT_LENGTH - 3) + '...';
-  }
-
-  return prompt;
+  return lines.join('\n');
 }
 
-export function buildAiUrl(prompt: string, target: AiTarget): string {
+function _baseUrl(target: AiTarget): string {
+  return target === 'chatgpt' ? 'https://chatgpt.com/' : 'https://claude.ai/new';
+}
+
+/**
+ * Opens the AI chat with the prompt.
+ * - If the URL-encoded prompt fits within safe URL limits, opens directly with ?q=.
+ * - Otherwise copies the full prompt to clipboard and opens the chat homepage,
+ *   returning 'clipboard' so the caller can show a hint to the user.
+ */
+export async function openAiWithPrompt(prompt: string, target: AiTarget): Promise<AiOpenResult> {
   const encoded = encodeURIComponent(prompt);
-  switch (target) {
-    case 'chatgpt':
-      return `https://chatgpt.com/?q=${encoded}`;
-    case 'claude':
-      return `https://claude.ai/new?q=${encoded}`;
+  if (encoded.length <= SAFE_ENCODED_LENGTH) {
+    window.open(`${_baseUrl(target)}?q=${encoded}`, '_blank', 'noopener,noreferrer');
+    return 'url';
   }
+  // Too large for a URL — copy full prompt to clipboard and open the chat
+  await navigator.clipboard.writeText(prompt);
+  window.open(_baseUrl(target), '_blank', 'noopener,noreferrer');
+  return 'clipboard';
 }

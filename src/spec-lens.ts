@@ -9,7 +9,7 @@ import { Router } from './core/router.js';
 import { loadGuides } from './core/guides.js';
 import { ThemeManager } from './core/theme.js';
 import { marked } from 'marked';
-import { generateAiPrompt, buildAiUrl } from './core/ai-prompt.js';
+import { generateAiPrompt, openAiWithPrompt } from './core/ai-prompt.js';
 import type { AiTarget } from './core/ai-prompt.js';
 import type { SpecLensConfig, ParsedSpec, ParsedOperation, AuthState, SearchEngine, GuideCategory, LoadedGuide } from './core/types.js';
 
@@ -617,6 +617,32 @@ export class SpecLensElement extends LitElement {
         --sl-header-height: 0px;
         min-height: unset;
       }
+
+      /* ── AI clipboard toast ──────────────── */
+      .ai-toast {
+        position: fixed;
+        bottom: 24px;
+        left: 50%;
+        transform: translateX(-50%);
+        z-index: 10000;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 12px 18px;
+        background: var(--sl-color-text);
+        color: var(--sl-color-bg);
+        border-radius: var(--sl-radius-lg);
+        font-size: var(--sl-font-size-sm);
+        font-weight: 500;
+        box-shadow: var(--sl-shadow-lg);
+        white-space: nowrap;
+        animation: sl-toast-in 200ms ease;
+      }
+
+      @keyframes sl-toast-in {
+        from { opacity: 0; transform: translateX(-50%) translateY(8px); }
+        to   { opacity: 1; transform: translateX(-50%) translateY(0); }
+      }
     `,
   ];
 
@@ -666,6 +692,7 @@ export class SpecLensElement extends LitElement {
   }
   @state() private _tryItAiMenuOpen = false;
   @state() private _tryItAiMenuRect: DOMRect | null = null;
+  @state() private _aiToast = false;
   private _search: SearchEngine | null = null;
   private _router: Router | null = null;
   private _themeManager: ThemeManager | null = null;
@@ -817,12 +844,15 @@ export class SpecLensElement extends LitElement {
     }
   }
 
-  private _openTryItAi(target: AiTarget): void {
+  private async _openTryItAi(target: AiTarget): Promise<void> {
     this._tryItAiMenuOpen = false;
     if (!this._tryItOperation) return;
     const prompt = generateAiPrompt(this._tryItOperation);
-    const url = buildAiUrl(prompt, target);
-    window.open(url, '_blank', 'noopener,noreferrer');
+    const result = await openAiWithPrompt(prompt, target);
+    if (result === 'clipboard') {
+      this._aiToast = true;
+      setTimeout(() => { this._aiToast = false; }, 4000);
+    }
   }
 
   /** Set the color theme programmatically. Useful in embed mode where the header is hidden. */
@@ -1084,6 +1114,16 @@ export class SpecLensElement extends LitElement {
             @select-operation=${this._handleSearchSelectOperation}
             @select-guide=${this._handleSearchSelectGuide}
           ></sl-search>
+        ` : null}
+
+        ${this._aiToast ? html`
+          <div class="ai-toast">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+              <rect x="5" y="5" width="8" height="8" rx="1"/>
+              <path d="M3 11V3h8"/>
+            </svg>
+            Prompt copied — paste it into the chat
+          </div>
         ` : null}
       </div>
     `;

@@ -2,7 +2,7 @@ import { LitElement, html, css } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 import { resetStyles } from '../../styles/reset.css.js';
 import { marked } from 'marked';
-import { generateAiPrompt, buildAiUrl } from '../../core/ai-prompt.js';
+import { generateAiPrompt, openAiWithPrompt } from '../../core/ai-prompt.js';
 import type { AiTarget } from '../../core/ai-prompt.js';
 import type { ParsedOperation, ParsedServer, SecurityScheme, AuthState } from '../../core/types.js';
 
@@ -344,6 +344,32 @@ export class SlOperation extends LitElement {
         flex-shrink: 0;
       }
 
+      /* ── AI clipboard toast ──────────────── */
+      .ai-toast {
+        position: fixed;
+        bottom: 24px;
+        left: 50%;
+        transform: translateX(-50%);
+        z-index: 10000;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 12px 18px;
+        background: var(--sl-color-text);
+        color: var(--sl-color-bg);
+        border-radius: var(--sl-radius-lg);
+        font-size: var(--sl-font-size-sm);
+        font-weight: 500;
+        box-shadow: var(--sl-shadow-lg);
+        white-space: nowrap;
+        animation: sl-toast-in 200ms ease;
+      }
+
+      @keyframes sl-toast-in {
+        from { opacity: 0; transform: translateX(-50%) translateY(8px); }
+        to   { opacity: 1; transform: translateX(-50%) translateY(0); }
+      }
+
       @media (max-width: 900px) {
         .op-body {
           grid-template-columns: 1fr;
@@ -373,6 +399,7 @@ export class SlOperation extends LitElement {
   @state() private _routeCopied = false;
   @state() private _aiMenuOpen = false;
   @state() private _aiMenuRect: DOMRect | null = null;
+  @state() private _aiToast = false;
 
   override willUpdate(changed: Map<string, unknown>): void {
     if (changed.has('activeOperationId') && this.activeOperationId) {
@@ -428,12 +455,15 @@ export class SlOperation extends LitElement {
     }
   }
 
-  private _openAi(target: AiTarget, e: Event) {
+  private async _openAi(target: AiTarget, e: Event) {
     e.stopPropagation();
     this._aiMenuOpen = false;
     const prompt = generateAiPrompt(this.operation);
-    const url = buildAiUrl(prompt, target);
-    window.open(url, '_blank', 'noopener,noreferrer');
+    const result = await openAiWithPrompt(prompt, target);
+    if (result === 'clipboard') {
+      this._aiToast = true;
+      setTimeout(() => { this._aiToast = false; }, 4000);
+    }
   }
 
   override render() {
@@ -555,6 +585,15 @@ export class SlOperation extends LitElement {
             </svg>
             Claude
           </button>
+        </div>
+      ` : null}
+      ${this._aiToast ? html`
+        <div class="ai-toast">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+            <rect x="5" y="5" width="8" height="8" rx="1"/>
+            <path d="M3 11V3h8"/>
+          </svg>
+          Prompt copied — paste it into the chat
         </div>
       ` : null}
     `;
