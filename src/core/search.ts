@@ -1,11 +1,11 @@
 import MiniSearch from 'minisearch';
-import type { ParsedOperation, SearchResult, SearchEngine } from './types.js';
+import type { ParsedOperation, SearchResult, GuideSearchResult, UnifiedSearchResult, SearchEngine, Guide } from './types.js';
 
 /**
- * Build a full-text search index from parsed operations.
+ * Build a full-text search index from parsed operations and optional guides.
  */
-export function buildSearchIndex(operations: ParsedOperation[]): SearchEngine {
-  const miniSearch = new MiniSearch<{
+export function buildSearchIndex(operations: ParsedOperation[], guides?: Guide[]): SearchEngine {
+  const opSearch = new MiniSearch<{
     id: string;
     operationId: string;
     summary: string;
@@ -38,12 +38,49 @@ export function buildSearchIndex(operations: ParsedOperation[]): SearchEngine {
     tags: op.tags.join(' '),
   }));
 
-  miniSearch.addAll(documents);
+  opSearch.addAll(documents);
+
+  // Build guide search index if guides are provided
+  let guideSearch: MiniSearch<{
+    id: string;
+    slug: string;
+    title: string;
+    category: string;
+    content: string;
+  }> | null = null;
+
+  if (guides?.length) {
+    guideSearch = new MiniSearch({
+      fields: ['title', 'category', 'content'],
+      storeFields: ['slug', 'title', 'category'],
+      searchOptions: {
+        prefix: true,
+        fuzzy: 0.2,
+        boost: {
+          title: 3,
+          category: 1.5,
+          content: 1,
+        },
+      },
+    });
+
+    const guideDocs = guides.map(g => ({
+      id: `guide-${g.slug}`,
+      slug: g.slug,
+      title: g.title,
+      category: g.category || 'General',
+      content: g.content || '',
+    }));
+
+    guideSearch.addAll(guideDocs);
+  }
 
   return {
-    search(query: string): SearchResult[] {
+    search(query: string): UnifiedSearchResult[] {
       if (!query.trim()) return [];
-      return miniSearch.search(query).map(result => ({
+
+      const opResults: UnifiedSearchResult[] = opSearch.search(query).map(result => ({
+        type: 'operation' as const,
         operationId: result.operationId as string,
         path: result.path as string,
         method: result.method as string as SearchResult['method'],
@@ -51,11 +88,28 @@ export function buildSearchIndex(operations: ParsedOperation[]): SearchEngine {
         tags: (result.tags as string).split(' ').filter(Boolean),
         score: result.score,
       }));
+
+      const guideResults: UnifiedSearchResult[] = guideSearch
+        ? guideSearch.search(query).map(result => ({
+            type: 'guide' as const,
+            slug: result.slug as string,
+            title: result.title as string,
+            category: result.category as string,
+            score: result.score,
+          }))
+        : [];
+
+      // Merge and sort by score descending
+      return [...opResults, ...guideResults].sort((a, b) => b.score - a.score);
     },
 
     autoSuggest(query: string): string[] {
       if (!query.trim()) return [];
-      return miniSearch.autoSuggest(query).map(s => s.suggestion);
+      const opSuggestions = opSearch.autoSuggest(query).map(s => s.suggestion);
+      const guideSuggestions = guideSearch
+        ? guideSearch.autoSuggest(query).map(s => s.suggestion)
+        : [];
+      return [...new Set([...opSuggestions, ...guideSuggestions])];
     },
   };
 }

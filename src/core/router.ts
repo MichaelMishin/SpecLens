@@ -1,12 +1,16 @@
+export type RouteInfo =
+  | { type: 'operation'; id: string }
+  | { type: 'guide'; slug: string };
+
 /**
- * Hash-based router for deep linking to operations.
- * Format: #/operation/{operationId} or #/tag/{tagName}
+ * Hash-based router for deep linking to operations and guides.
+ * Formats: #/operation/{operationId} | #/guide/{slug}
  */
 export class Router {
-  private _callback: (operationId: string) => void;
+  private _callback: (route: RouteInfo) => void;
   private _onHashChange = () => this.handleCurrentRoute();
 
-  constructor(onNavigate: (operationId: string) => void) {
+  constructor(onNavigate: (route: RouteInfo) => void) {
     this._callback = onNavigate;
   }
 
@@ -22,9 +26,15 @@ export class Router {
     const hash = window.location.hash;
     if (!hash) return;
 
-    const match = hash.match(/^#\/operation\/(.+)$/);
-    if (match) {
-      this._callback(decodeURIComponent(match[1]));
+    const opMatch = hash.match(/^#\/operation\/(.+)$/);
+    if (opMatch) {
+      this._callback({ type: 'operation', id: decodeURIComponent(opMatch[1]) });
+      return;
+    }
+
+    const guideMatch = hash.match(/^#\/guide\/(.+)$/);
+    if (guideMatch) {
+      this._callback({ type: 'guide', slug: decodeURIComponent(guideMatch[1]) });
     }
   }
 
@@ -33,12 +43,24 @@ export class Router {
     if (window.location.hash !== hash) {
       window.location.hash = hash;
     } else {
-      // Hash didn't change, manually trigger callback
-      this._callback(operationId);
+      this._callback({ type: 'operation', id: operationId });
+    }
+  }
+
+  navigateToGuide(slug: string): void {
+    const hash = `#/guide/${encodeURIComponent(slug)}`;
+    if (window.location.hash !== hash) {
+      window.location.hash = hash;
+    } else {
+      this._callback({ type: 'guide', slug });
     }
   }
 
   static buildHash(operationId: string): string {
     return `#/operation/${encodeURIComponent(operationId)}`;
+  }
+
+  static buildGuideHash(slug: string): string {
+    return `#/guide/${encodeURIComponent(slug)}`;
   }
 }

@@ -17,6 +17,39 @@ export interface SpecLensConfig {
   hideTryIt?: boolean;
   /** Hide code sample panels. */
   hideCodeSamples?: boolean;
+  /** Inline guide definitions. When provided, top-level nav tabs appear. */
+  guides?: Guide[];
+  /** URL to an external guides manifest JSON file. */
+  guidesUrl?: string;
+}
+
+// ── Guide Types ─────────────────────────────────────────────────────
+
+export interface Guide {
+  /** Display title shown in sidebar and page header. */
+  title: string;
+  /** URL-safe unique identifier, used in hash routing (#/guide/{slug}). */
+  slug: string;
+  /** Inline markdown content. Takes precedence over `url`. */
+  content?: string;
+  /** URL to a markdown file to fetch. */
+  url?: string;
+  /** Category/section name for sidebar grouping. */
+  category?: string;
+  /** Sort order within the category. Falls back to array position. */
+  order?: number;
+}
+
+export interface GuideCategory {
+  /** Category display name. */
+  name: string;
+  /** Guides in this category, sorted by order. */
+  guides: Guide[];
+}
+
+export interface LoadedGuide extends Guide {
+  /** Rendered HTML content (from markdown). */
+  htmlContent: string;
 }
 
 // ── Internal Normalized Types ───────────────────────────────────────
@@ -130,6 +163,7 @@ export interface ParsedSpec {
 // ── Search Types ────────────────────────────────────────────────────
 
 export interface SearchResult {
+  type: 'operation';
   operationId: string;
   path: string;
   method: HttpMethod;
@@ -138,10 +172,20 @@ export interface SearchResult {
   score: number;
 }
 
+export interface GuideSearchResult {
+  type: 'guide';
+  slug: string;
+  title: string;
+  category: string;
+  score: number;
+}
+
+export type UnifiedSearchResult = SearchResult | GuideSearchResult;
+
 // ── Search Engine Interface ──────────────────────────────────────
 
 export interface SearchEngine {
-  search(query: string): SearchResult[];
+  search(query: string): UnifiedSearchResult[];
   autoSuggest(query: string): string[];
 }
 
