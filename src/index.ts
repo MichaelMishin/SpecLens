@@ -50,6 +50,9 @@ export const SpecLens = {
     if (config.hideCodeSamples) {
       el.setAttribute('hide-code-samples', '');
     }
+    if (config.guidesUrl) {
+      el.setAttribute('guides-url', config.guidesUrl);
+    }
 
     // Pass full config object for properties not expressible as attributes
     el.config = config;
@@ -60,5 +63,5 @@ export const SpecLens = {
 };
 
 // Re-export types for ESM consumers
-export type { SpecLensConfig } from './core/types.js';
+export type { SpecLensConfig, Guide, GuideCategory, LoadedGuide } from './core/types.js';
 export { SpecLensElement } from './spec-lens.js';
