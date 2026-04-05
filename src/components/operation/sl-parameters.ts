@@ -1,6 +1,7 @@
 import { LitElement, html, css } from 'lit';
 import { customElement, property } from 'lit/decorators.js';
 import { resetStyles } from '../../styles/reset.css.js';
+import { marked } from 'marked';
 import type { ParsedParameter } from '../../core/types.js';
 
 @customElement('sl-parameters')
@@ -76,6 +77,111 @@ export class SlParameters extends LitElement {
         color: var(--sl-color-text-secondary);
         line-height: 1.5;
       }
+
+      .param-desc p {
+        margin: 0 0 var(--sl-spacing-xs) 0;
+      }
+
+      .param-desc p:last-child {
+        margin-bottom: 0;
+      }
+
+      .param-desc code {
+        background: var(--sl-color-code-bg);
+        padding: 1px 5px;
+        border-radius: var(--sl-radius-sm);
+        font-size: 0.85em;
+        border: 1px solid var(--sl-color-border);
+      }
+
+      .param-desc pre {
+        background: #0d1117;
+        border: 1px solid #30363d;
+        border-radius: var(--sl-radius-md);
+        padding: var(--sl-spacing-sm) var(--sl-spacing-md);
+        overflow-x: auto;
+        margin: var(--sl-spacing-xs) 0;
+      }
+
+      .param-desc pre code {
+        background: none;
+        border: none;
+        padding: 0;
+        color: #e6edf3;
+        font-size: var(--sl-font-size-xs);
+      }
+
+      .param-desc table {
+        width: 100%;
+        border-collapse: separate;
+        border-spacing: 0;
+        border: 1px solid var(--sl-color-border);
+        border-radius: var(--sl-radius-md);
+        overflow: hidden;
+        font-size: var(--sl-font-size-xs);
+        margin: var(--sl-spacing-xs) 0;
+      }
+
+      .param-desc th,
+      .param-desc td {
+        padding: var(--sl-spacing-xs) var(--sl-spacing-sm);
+        text-align: left;
+        border-bottom: 1px solid var(--sl-color-border);
+      }
+
+      .param-desc th {
+        background: var(--sl-color-bg-subtle);
+        font-weight: 600;
+        border-bottom-width: 2px;
+      }
+
+      .param-desc tr:last-child td {
+        border-bottom: none;
+      }
+
+      .param-desc blockquote {
+        border-left: 3px solid var(--sl-color-primary);
+        background: rgba(99,102,241,0.05);
+        padding: var(--sl-spacing-xs) var(--sl-spacing-sm);
+        margin: var(--sl-spacing-xs) 0;
+        border-radius: 0 var(--sl-radius-sm) var(--sl-radius-sm) 0;
+      }
+
+      .param-desc ul,
+      .param-desc ol {
+        padding-left: var(--sl-spacing-lg);
+        margin: var(--sl-spacing-xs) 0;
+      }
+
+      .param-desc li {
+        margin-bottom: 2px;
+      }
+
+      .param-desc a {
+        color: var(--sl-color-primary);
+        text-decoration: none;
+      }
+
+      .param-desc a:hover {
+        text-decoration: underline;
+      }
+
+      .param-desc h1,
+      .param-desc h2,
+      .param-desc h3,
+      .param-desc h4,
+      .param-desc h5,
+      .param-desc h6 {
+        margin: var(--sl-spacing-xs) 0 2px 0;
+        font-weight: 600;
+        line-height: 1.3;
+        color: var(--sl-color-text);
+      }
+
+      .param-desc h3 { font-size: 0.95em; }
+      .param-desc h4 { font-size: 0.9em; }
+      .param-desc h5,
+      .param-desc h6 { font-size: 0.85em; }
 
       .param-example {
         font-size: var(--sl-font-size-xs);
@@ -154,7 +260,7 @@ export class SlParameters extends LitElement {
               </div>
               <div class="param-type">${this._getType(param.schema as Record<string, unknown>)}</div>
               <div>
-                <div class="param-desc">${param.description}</div>
+                <div class="param-desc" .innerHTML=${marked.parse(param.description || '') as string}></div>
                 ${param.example !== undefined ? html`
                   <div class="param-example">Example: <code>${JSON.stringify(param.example)}</code></div>
                 ` : null}
