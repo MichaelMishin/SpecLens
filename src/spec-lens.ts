@@ -666,6 +666,7 @@ export class SpecLensElement extends LitElement {
   }
   @state() private _tryItAiMenuOpen = false;
   @state() private _tryItAiMenuRect: DOMRect | null = null;
+  private _search: SearchEngine | null = null;
   private _router: Router | null = null;
   private _themeManager: ThemeManager | null = null;
   private _observer: IntersectionObserver | null = null;

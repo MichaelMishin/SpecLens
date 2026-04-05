@@ -2,7 +2,7 @@
 
 A modern, lightweight OpenAPI documentation renderer built as a web component. Drop it into any page via CDN — no build step required.
 
-> **Version:** 0.2.0
+> **Version:** 0.3.0
 
 ## Features
 
@@ -10,7 +10,10 @@ A modern, lightweight OpenAPI documentation renderer built as a web component. D
 - **Web component** — `<spec-lens>` custom element with Shadow DOM style isolation
 - **Try It console** — live API request execution with support for JSON, `multipart/form-data`, and `application/x-www-form-urlencoded` bodies
 - **Code samples** — generated snippets for cURL, JavaScript, Python, Node.js, Go, Java, PHP, Ruby, and C#
-- **Full-text search** — fast in-page search powered by MiniSearch
+- **Full-text search** — fast in-page search powered by MiniSearch, covering both operations and guides
+- **Guides** — built-in documentation tab with category sidebar; load guides from an external JSON manifest or inline via config
+- **Ask AI** — one-click buttons on every operation to open a structured prompt in ChatGPT or Claude
+- **Copy route** — hover a route header to copy its deeplink hash to the clipboard
 - **Light & dark themes** — auto-detects system preference, overridable via CSS custom properties
 - **OpenAPI 3.x support** — parsed and validated by `@apidevtools/swagger-parser`
 
@@ -35,6 +38,7 @@ import { SpecLens } from '@michaelmishin/speclens';
 SpecLens.init('#docs', {
   specUrl: '/openapi.json',
   theme: 'auto', // 'light' | 'dark' | 'auto'
+  guidesUrl: '/guides.json', // optional guides manifest
 });
 ```
 
@@ -42,6 +46,68 @@ SpecLens.init('#docs', {
 
 ```bash
 npm install @michaelmishin/speclens
+```
+
+## Guides
+
+SpecLens can render a **Guides** section alongside the API reference. When guides are configured, a top-level tab bar appears in the header to switch between _API Reference_ and _Guides_.
+
+### External manifest (recommended)
+
+Create a JSON file that is an array of guide objects and point `guides-url` (or `guidesUrl` in `SpecLens.init()`) at it:
+
+```html
+<spec-lens spec-url="/openapi.json" guides-url="/guides.json"></spec-lens>
+```
+
+```json
+[
+  { "title": "Getting Started", "slug": "getting-started", "url": "/docs/getting-started.md", "category": "Basics", "order": 1 },
+  { "title": "Authentication",  "slug": "authentication",  "url": "/docs/authentication.md",  "category": "Basics", "order": 2 },
+  { "title": "Pagination",      "slug": "pagination",      "url": "/docs/pagination.md",      "category": "Advanced", "order": 1 }
+]
+```
+
+Each guide is fetched and rendered from its `url` (a Markdown file). You can also embed content inline by omitting `url` and providing a `content` string.
+
+### Guide object fields
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `title` | string | Display title shown in sidebar and page header |
+| `slug` | string | URL-safe identifier — used in hash routing `#/guide/{slug}` |
+| `url` | string | URL to a Markdown file to fetch |
+| `content` | string | Inline Markdown content (takes precedence over `url`) |
+| `category` | string | Sidebar group name (defaults to _General_) |
+| `order` | number | Sort order within the category |
+
+### Inline guides via config
+
+```js
+SpecLens.init('#docs', {
+  specUrl: '/openapi.json',
+  guides: [
+    { title: 'Getting Started', slug: 'getting-started', content: '# Hello\nWelcome!', category: 'Basics' },
+  ],
+});
+```
+
+Inline guides and an external manifest can be combined — inline guides override on slug collision.
+
+## Ask AI
+
+Every operation header includes an **Ask AI** button that generates a structured Markdown prompt describing the endpoint (method, path, parameters, request body, responses) and opens it in ChatGPT or Claude.
+
+To hide the button, add the `hide-ask-ai` attribute:
+
+```html
+<spec-lens spec-url="/openapi.json" hide-ask-ai></spec-lens>
+```
+
+Or via config:
+
+```js
+SpecLens.init('#docs', { specUrl: '/openapi.json', hideAskAi: true });
 ```
 
 ## Customization
@@ -118,7 +184,7 @@ npm run dev      # Vite dev server → http://localhost:5173
 npm run build    # Produces dist/speclens.js (ESM) + dist/speclens.iife.js (IIFE)
 ```
 
-The demo page (`index.html`) loads the Petstore spec from `demo/petstore.json`.
+The demo page (`index.html`) loads the Petstore spec from `demo/petstore.json` and a guides manifest from `demo/guides.json`.
 
 ## Architecture
 
@@ -126,8 +192,11 @@ The demo page (`index.html`) loads the Petstore spec from `demo/petstore.json`.
 |------|---------|
 | `src/index.ts` | Entry point — registers `<spec-lens>`, exports `SpecLens.init()` |
 | `src/spec-lens.ts` | Root orchestrator Lit component |
-| `src/core/` | Parser, router (hash-based), full-text search, theme utilities |
-| `src/components/` | Lit web components (layout, operation detail, schema, code samples, auth) |
+| `src/core/` | Parser, router (hash-based), full-text search, theme utilities, guides loader, AI prompt builder |
+| `src/components/guides/` | `sl-guide-sidebar` and `sl-guide-view` Lit components |
+| `src/components/layout/` | Header (with nav tabs and global search trigger), sidebar, search overlay |
+| `src/components/operation/` | Operation detail, parameters, request body, responses, Try-It console, Ask AI |
+| `src/components/` | Auth, code samples, schema renderer |
 | `src/styles/` | Design tokens, theme CSS, reset — authored as Lit `css` tagged templates |
 | `src/shims/` | Browser shims for Node.js `util`/`path` (required by swagger-parser) |
 
