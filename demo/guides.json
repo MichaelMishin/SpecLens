@@ -1,0 +1,30 @@
+[
+  {
+    "title": "Getting Started",
+    "slug": "getting-started",
+    "url": "/demo/guides/getting-started.md",
+    "category": "Basics",
+    "order": 1
+  },
+  {
+    "title": "Authentication",
+    "slug": "authentication",
+    "url": "/demo/guides/authentication.md",
+    "category": "Basics",
+    "order": 2
+  },
+  {
+    "title": "Pagination",
+    "slug": "pagination",
+    "url": "/demo/guides/pagination.md",
+    "category": "Advanced",
+    "order": 1
+  },
+  {
+    "title": "Error Handling",
+    "slug": "error-handling",
+    "url": "/demo/guides/error-handling.md",
+    "category": "Advanced",
+    "order": 2
+  }
+]
