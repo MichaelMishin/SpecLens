@@ -2,6 +2,7 @@ import { LitElement, html, css } from 'lit';
 import { customElement, property, state, query } from 'lit/decorators.js';
 import { resetStyles } from '../../styles/reset.css.js';
 import type { SearchEngine, UnifiedSearchResult } from '../../core/types.js';
+import type { SearchScope } from '../../core/search.js';
 
 @customElement('sl-search')
 export class SlSearch extends LitElement {
@@ -177,6 +178,70 @@ export class SlSearch extends LitElement {
         color: var(--sl-color-text-muted);
         border: 1px solid var(--sl-color-border);
       }
+
+      /* ── Scope filter ────────────────────── */
+      .scope-bar {
+        display: flex;
+        gap: 4px;
+        padding: 4px var(--sl-spacing-lg) var(--sl-spacing-sm);
+      }
+
+      .scope-chip {
+        padding: 3px 10px;
+        border-radius: 999px;
+        font-size: var(--sl-font-size-xs);
+        font-weight: 600;
+        cursor: pointer;
+        transition: all var(--sl-transition-fast);
+        border: 1px solid var(--sl-color-border);
+        background: transparent;
+        color: var(--sl-color-text-muted);
+      }
+
+      .scope-chip:hover {
+        background: var(--sl-color-surface-raised);
+        color: var(--sl-color-text);
+      }
+
+      .scope-chip.active {
+        background: var(--sl-color-primary);
+        color: #fff;
+        border-color: var(--sl-color-primary);
+      }
+
+      /* ── Keyword chips ───────────────────── */
+      .keywords-section {
+        padding: var(--sl-spacing-sm) var(--sl-spacing-lg) var(--sl-spacing-md);
+      }
+
+      .keywords-label {
+        font-size: var(--sl-font-size-xs);
+        color: var(--sl-color-text-muted);
+        margin-bottom: 6px;
+      }
+
+      .keywords-list {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+      }
+
+      .keyword-chip {
+        padding: 3px 10px;
+        border-radius: 999px;
+        font-size: var(--sl-font-size-xs);
+        cursor: pointer;
+        transition: all var(--sl-transition-fast);
+        border: 1px solid var(--sl-color-border);
+        background: var(--sl-color-surface-raised);
+        color: var(--sl-color-text-muted);
+      }
+
+      .keyword-chip:hover {
+        background: var(--sl-color-primary);
+        color: #fff;
+        border-color: var(--sl-color-primary);
+      }
     `,
   ];
 
@@ -185,6 +250,7 @@ export class SlSearch extends LitElement {
   @state() private _query = '';
   @state() private _results: UnifiedSearchResult[] = [];
   @state() private _highlightIndex = 0;
+  @state() private _scope: SearchScope = 'all';
 
   @query('input') private _input!: HTMLInputElement;
 
@@ -195,11 +261,29 @@ export class SlSearch extends LitElement {
   private _handleInput(e: Event): void {
     this._query = (e.target as HTMLInputElement).value;
     this._highlightIndex = 0;
+    this._runSearch();
+  }
+
+  private _runSearch(): void {
     if (this.searchEngine && this._query.trim()) {
-      this._results = this.searchEngine.search(this._query).slice(0, 20);
+      this._results = this.searchEngine.search(this._query, this._scope).slice(0, 20);
     } else {
       this._results = [];
     }
+  }
+
+  private _setScope(scope: SearchScope): void {
+    this._scope = scope;
+    this._runSearch();
+    this._input?.focus();
+  }
+
+  private _searchKeyword(keyword: string): void {
+    this._query = keyword;
+    this._highlightIndex = 0;
+    this._runSearch();
+    if (this._input) this._input.value = keyword;
+    this._input?.focus();
   }
 
   private _handleKeyDown(e: KeyboardEvent): void {
@@ -264,6 +348,9 @@ export class SlSearch extends LitElement {
   }
 
   override render() {
+    const showScopeBar = this.searchEngine?.hasGuides();
+    const keywords = this.searchEngine?.getKeywords() || [];
+
     return html`
       <div class="overlay" @click=${() => this.dispatchEvent(new CustomEvent('close'))}></div>
       <div class="modal" @keydown=${this._handleKeyDown}>
@@ -281,9 +368,28 @@ export class SlSearch extends LitElement {
           <span class="esc-hint">Esc</span>
         </div>
 
+        ${showScopeBar ? html`
+          <div class="scope-bar">
+            <button class="scope-chip ${this._scope === 'all' ? 'active' : ''}" @click=${() => this._setScope('all')}>All</button>
+            <button class="scope-chip ${this._scope === 'api' ? 'active' : ''}" @click=${() => this._setScope('api')}>API Reference</button>
+            <button class="scope-chip ${this._scope === 'guides' ? 'active' : ''}" @click=${() => this._setScope('guides')}>Guides</button>
+          </div>
+        ` : null}
+
         <div class="results">
           ${this._query.trim() === '' ? html`
-            <div class="empty-state">Start typing to search…</div>
+            ${keywords.length > 0 ? html`
+              <div class="keywords-section">
+                <div class="keywords-label">Suggested searches</div>
+                <div class="keywords-list">
+                  ${keywords.map(kw => html`
+                    <button class="keyword-chip" @click=${() => this._searchKeyword(kw)}>${kw}</button>
+                  `)}
+                </div>
+              </div>
+            ` : html`
+              <div class="empty-state">Start typing to search…</div>
+            `}
           ` : this._results.length === 0 ? html`
             <div class="no-results">No results for "${this._query}"</div>
           ` : this._results.map((result, i) => this._renderResult(result, i))}

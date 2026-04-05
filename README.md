@@ -2,7 +2,7 @@
 
 A modern, lightweight OpenAPI documentation renderer built as a web component. Drop it into any page via CDN — no build step required.
 
-> **Version:** 0.3.0
+> **Version:** 0.4.0
 
 ## Features
 
@@ -10,9 +10,9 @@ A modern, lightweight OpenAPI documentation renderer built as a web component. D
 - **Web component** — `<spec-lens>` custom element with Shadow DOM style isolation
 - **Try It console** — live API request execution with support for JSON, `multipart/form-data`, and `application/x-www-form-urlencoded` bodies
 - **Code samples** — generated snippets for cURL, JavaScript, Python, Node.js, Go, Java, PHP, Ruby, and C#
-- **Full-text search** — fast in-page search powered by MiniSearch, covering both operations and guides
+- **Full-text search** — fast in-page search powered by MiniSearch with keyword suggestions, scope filtering (All / API Reference / Guides), and fuzzy matching
 - **Guides** — built-in documentation tab with category sidebar; load guides from an external JSON manifest or inline via config
-- **Ask AI** — one-click buttons on every operation to open a structured prompt in ChatGPT or Claude
+- **Ask AI** — one-click buttons on every operation to open a structured prompt in ChatGPT or Claude, or copy the prompt to use with any AI agent
 - **Copy route** — hover a route header to copy its deeplink hash to the clipboard
 - **Light & dark themes** — auto-detects system preference, overridable via CSS custom properties
 - **OpenAPI 3.x support** — parsed and validated by `@apidevtools/swagger-parser`
@@ -94,9 +94,17 @@ SpecLens.init('#docs', {
 
 Inline guides and an external manifest can be combined — inline guides override on slug collision.
 
+## Search
+
+The global search (triggered by the search icon or `Ctrl/Cmd+K`) indexes both API operations and guides. It supports:
+
+- **Fuzzy matching** — typos and partial words still find results
+- **Keyword suggestions** — common terms extracted from the spec and guides are shown as clickable chips before you start typing
+- **Scope filtering** — when guides are configured, filter results by **All**, **API Reference**, or **Guides**
+
 ## Ask AI
 
-Every operation header includes an **Ask AI** button that generates a structured Markdown prompt describing the endpoint (method, path, parameters, request body, responses) and opens it in ChatGPT or Claude.
+Every operation header includes an **Ask AI** button that generates a structured Markdown prompt describing the endpoint (method, path, parameters, request body, responses) and opens it in ChatGPT or Claude. A **Copy Prompt** option is also available for pasting into any AI tool of your choice.
 
 To hide the button, add the `hide-ask-ai` attribute:
 

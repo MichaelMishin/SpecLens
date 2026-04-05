@@ -185,8 +185,10 @@ export type UnifiedSearchResult = SearchResult | GuideSearchResult;
 // ── Search Engine Interface ──────────────────────────────────────
 
 export interface SearchEngine {
-  search(query: string): UnifiedSearchResult[];
+  search(query: string, scope?: 'all' | 'api' | 'guides'): UnifiedSearchResult[];
   autoSuggest(query: string): string[];
+  getKeywords(): string[];
+  hasGuides(): boolean;
 }
 
 // ── Auth State ──────────────────────────────────────────────────────
