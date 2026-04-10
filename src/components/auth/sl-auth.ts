@@ -392,6 +392,18 @@ export class SlAuth extends LitElement {
   @state() private _localState: AuthState = { apiKeys: {}, bearerTokens: {} };
   @state() private _showTokens = new Set<string>();
 
+  override firstUpdated(): void {
+    const firstInput = this.renderRoot.querySelector<HTMLInputElement>('input[type="text"], input[type="password"]');
+    firstInput?.focus();
+  }
+
+  private _handleKeyDown(e: KeyboardEvent): void {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      this._close();
+    }
+  }
+
   override willUpdate(): void {
     if (Object.keys(this._localState.apiKeys).length === 0 &&
         Object.keys(this._localState.bearerTokens).length === 0) {
@@ -521,7 +533,7 @@ export class SlAuth extends LitElement {
     const schemeCount = this.securitySchemes.length;
     return html`
       <div class="overlay" @click=${this._close}></div>
-      <div class="modal">
+      <div class="modal" @keydown=${this._handleKeyDown}>
         <div class="modal-header">
           <div class="modal-title-area">
             <div class="modal-icon">

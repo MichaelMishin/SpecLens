@@ -455,7 +455,8 @@ export class SpecLensElement extends LitElement {
         top: 50%;
         left: 50%;
         transform: translate(-50%, -50%);
-        width: min(680px, calc(100vw - 2rem));
+        width: min(1200px, calc(100vw - 2rem));
+        height: calc(100vh - 4rem);
         max-height: calc(100vh - 4rem);
         background: var(--sl-color-surface);
         border-radius: var(--sl-radius-xl);
@@ -533,7 +534,7 @@ export class SpecLensElement extends LitElement {
 
       .try-it-body {
         flex: 1;
-        overflow-y: auto;
+        overflow: hidden;
         padding: 0;
       }
 

@@ -174,14 +174,43 @@ export class SlSidebar extends LitElement {
       .tag-header {
         display: flex;
         align-items: center;
+        gap: 4px;
         padding: var(--sl-spacing-sm) var(--sl-spacing-lg);
         font-size: var(--sl-font-size-xs);
         font-weight: 600;
         text-transform: uppercase;
         letter-spacing: 0.05em;
         color: var(--sl-color-text-muted);
-        cursor: default;
+        cursor: pointer;
         user-select: none;
+        transition: color var(--sl-transition-fast);
+      }
+
+      .tag-header:hover {
+        color: var(--sl-color-text);
+      }
+
+      .tag-chevron {
+        width: 14px;
+        height: 14px;
+        flex-shrink: 0;
+        transition: transform var(--sl-transition-fast);
+      }
+
+      .tag-chevron.collapsed {
+        transform: rotate(-90deg);
+      }
+
+      .tag-name {
+        flex: 1;
+      }
+
+      .tag-count {
+        font-size: 0.6rem;
+        color: var(--sl-color-text-muted);
+        opacity: 0.6;
+        font-weight: 500;
+        font-family: var(--sl-font-mono);
       }
 
       .op-link {
@@ -283,6 +312,7 @@ export class SlSidebar extends LitElement {
 
   @state() private _searchQuery = '';
   @state() private _searchResults: SearchResult[] = [];
+  @state() private _collapsedGroups = new Set<string>();
 
   @query('.search-input') private _searchInput!: HTMLInputElement;
 
@@ -317,6 +347,13 @@ export class SlSidebar extends LitElement {
 
   private _isIntroActive(): boolean {
     return !this.activeOperationId;
+  }
+
+  private _toggleGroup(name: string): void {
+    const next = new Set(this._collapsedGroups);
+    if (next.has(name)) next.delete(name);
+    else next.add(name);
+    this._collapsedGroups = next;
   }
 
   override render() {
@@ -361,10 +398,18 @@ export class SlSidebar extends LitElement {
               </svg>
               Introduction
             </a>
-            ${this.tagGroups.map(group => html`
+            ${this.tagGroups.map(group => {
+              const isCollapsed = this._collapsedGroups.has(group.name);
+              return html`
               <div class="tag-group">
-                <div class="tag-header">${group.name}</div>
-                ${group.operations.map(op => html`
+                <div class="tag-header" @click=${() => this._toggleGroup(group.name)}>
+                  <svg class="tag-chevron ${isCollapsed ? 'collapsed' : ''}" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M4 6l4 4 4-4"/>
+                  </svg>
+                  <span class="tag-name">${group.name}</span>
+                  <span class="tag-count">${group.operations.length}</span>
+                </div>
+                ${!isCollapsed ? group.operations.map(op => html`
                   <a
                     class="op-link ${op.operationId === this.activeOperationId ? 'active' : ''}"
                     @click=${() => this._navigate(op.operationId)}
@@ -373,9 +418,9 @@ export class SlSidebar extends LitElement {
                     <span class="method-badge method-${op.method}">${op.method}</span>
                     <span class="op-path">${op.summary || op.path}</span>
                   </a>
-                `)}
+                `) : null}
               </div>
-            `)}
+            `})}
           `}
         </div>
 
