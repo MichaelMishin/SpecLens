@@ -2,7 +2,7 @@
 
 A modern, lightweight OpenAPI documentation renderer built as a web component. Drop it into any page via CDN — no build step required.
 
-> **Version:** 0.4.0
+> **Version:** 0.5.0
 
 ## Features
 

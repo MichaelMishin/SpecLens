@@ -38,6 +38,13 @@ export const themeStyles = css`
     --sl-color-sidebar-active: rgba(99, 102, 241, 0.08);
 
     --sl-color-overlay: rgba(0, 0, 0, 0.4);
+
+    --sl-json-key: #0550ae;
+    --sl-json-string: #0a3069;
+    --sl-json-number: #0550ae;
+    --sl-json-boolean: #cf222e;
+    --sl-json-null: #6e7781;
+    --sl-json-brace: #64748b;
   }
 
   /* ── Dark Theme ───────────────────────────── */
@@ -76,6 +83,13 @@ export const themeStyles = css`
     --sl-color-sidebar-active: rgba(129, 140, 248, 0.12);
 
     --sl-color-overlay: rgba(0, 0, 0, 0.6);
+
+    --sl-json-key: #79c0ff;
+    --sl-json-string: #a5d6ff;
+    --sl-json-number: #79c0ff;
+    --sl-json-boolean: #ff7b72;
+    --sl-json-null: #8b949e;
+    --sl-json-brace: #94a3b8;
 
     --sl-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
     --sl-shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.4), 0 2px 4px -2px rgba(0, 0, 0, 0.3);

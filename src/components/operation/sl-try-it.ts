@@ -123,6 +123,19 @@ export class SlTryIt extends LitElement {
         transition: border-color var(--sl-transition-fast);
       }
 
+      select {
+        appearance: none;
+        -webkit-appearance: none;
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+        background-repeat: no-repeat;
+        background-position: right 8px center;
+        padding-right: 28px;
+      }
+
+      select:hover {
+        border-color: var(--sl-color-primary);
+      }
+
       input:focus, select:focus {
         border-color: var(--sl-color-primary);
       }
@@ -153,7 +166,7 @@ export class SlTryIt extends LitElement {
 
       textarea {
         width: 100%;
-        min-height: 100px;
+        min-height: 200px;
         padding: var(--sl-spacing-sm);
         border: 1px solid var(--sl-color-border);
         border-radius: var(--sl-radius-sm);
@@ -170,6 +183,14 @@ export class SlTryIt extends LitElement {
       textarea:focus {
         border-color: var(--sl-color-primary);
       }
+
+      /* JSON syntax colors */
+      .json-key { color: var(--sl-json-key, #0550ae); }
+      .json-string { color: var(--sl-json-string, #0a3069); }
+      .json-number { color: var(--sl-json-number, #0550ae); }
+      .json-boolean { color: var(--sl-json-boolean, #cf222e); }
+      .json-null { color: var(--sl-json-null, #6e7781); }
+      .json-brace { color: var(--sl-json-brace, #64748b); }
 
       /* ── File upload ─────────────────────── */
       .file-upload-row {
@@ -320,6 +341,28 @@ export class SlTryIt extends LitElement {
       .send-btn:disabled {
         opacity: 0.6;
         cursor: not-allowed;
+      }
+
+      .enter-hint {
+        font-size: var(--sl-font-size-xs);
+        color: var(--sl-color-text-muted);
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        margin-left: auto;
+      }
+
+      .enter-hint kbd {
+        display: inline-flex;
+        align-items: center;
+        padding: 1px 6px;
+        border-radius: 3px;
+        background: var(--sl-color-surface-raised);
+        color: var(--sl-color-text-secondary);
+        font-family: var(--sl-font-mono);
+        font-size: 10px;
+        font-weight: 600;
+        border: 1px solid var(--sl-color-border);
       }
 
       /* ── Right: Response Panel ──────────── */
@@ -518,8 +561,8 @@ export class SlTryIt extends LitElement {
 
       @keyframes sl-float {
         0%, 100% { opacity: 0; transform: translateY(8px); }
-        20%, 80% { opacity: 0.7; }
-        50% { opacity: 0.9; transform: translateY(-8px); }
+        20%, 80% { opacity: 0.6; }
+        50% { opacity: 0.8; transform: translateY(-8px); }
       }
 
       /* Text content */
@@ -631,11 +674,16 @@ export class SlTryIt extends LitElement {
         padding: var(--sl-spacing-md) var(--sl-spacing-lg);
       }
 
+      .response-body {
+        position: relative;
+      }
+
       .response-body pre {
         background: var(--sl-resp-code-bg);
         border: 1px solid var(--sl-resp-border);
         border-radius: var(--sl-radius-sm);
         padding: var(--sl-spacing-md);
+        padding-right: 60px;
         font-size: var(--sl-font-size-sm);
         color: var(--sl-resp-code-text);
         overflow-x: auto;
@@ -646,6 +694,32 @@ export class SlTryIt extends LitElement {
         max-height: 100%;
         scrollbar-width: thin;
         scrollbar-color: var(--sl-resp-border) transparent;
+      }
+
+      .copy-btn {
+        position: absolute;
+        top: var(--sl-spacing-sm);
+        right: var(--sl-spacing-sm);
+        padding: 4px 10px;
+        border-radius: var(--sl-radius-sm);
+        font-size: var(--sl-font-size-xs);
+        color: var(--sl-resp-text-dim);
+        background: var(--sl-resp-bg);
+        border: 1px solid var(--sl-resp-border);
+        transition: all var(--sl-transition-fast);
+        z-index: 1;
+        cursor: pointer;
+      }
+
+      .copy-btn:hover {
+        color: var(--sl-resp-text);
+        background: var(--sl-resp-code-bg);
+        border-color: var(--sl-resp-text-dim);
+      }
+
+      .copy-btn.copied {
+        color: #10b981;
+        border-color: #10b981;
       }
 
       .response-body pre::-webkit-scrollbar { width: 6px; height: 6px; }
@@ -725,6 +799,7 @@ export class SlTryIt extends LitElement {
   @state() private _error: string | null = null;
   @state() private _showResponseHeaders = false;
   @state() private _initialized = false;
+  @state() private _copied = false;
 
   override willUpdate() {
     if (!this._initialized && this.operation) {
@@ -1011,6 +1086,59 @@ export class SlTryIt extends LitElement {
     }
   }
 
+  private _highlightJson(text: string): ReturnType<typeof html> {
+    try {
+      JSON.parse(text);
+    } catch {
+      return html`${text}`;
+    }
+
+    const tokens: ReturnType<typeof html>[] = [];
+    // Regex to match JSON tokens
+    const re = /("(?:\\.|[^"\\])*")\s*:|("(?:\\.|[^"\\])*")|(-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?)\b|(true|false)|(null)|([{}[\],])/g;
+    let last = 0;
+    let match: RegExpExecArray | null;
+    while ((match = re.exec(text)) !== null) {
+      if (match.index > last) {
+        tokens.push(html`${text.slice(last, match.index)}`);
+      }
+      if (match[1] !== undefined) {
+        // key
+        tokens.push(html`<span class="json-key">${match[1]}</span>:`);
+      } else if (match[2] !== undefined) {
+        tokens.push(html`<span class="json-string">${match[2]}</span>`);
+      } else if (match[3] !== undefined) {
+        tokens.push(html`<span class="json-number">${match[3]}</span>`);
+      } else if (match[4] !== undefined) {
+        tokens.push(html`<span class="json-boolean">${match[4]}</span>`);
+      } else if (match[5] !== undefined) {
+        tokens.push(html`<span class="json-null">${match[5]}</span>`);
+      } else if (match[6] !== undefined) {
+        tokens.push(html`<span class="json-brace">${match[6]}</span>`);
+      }
+      last = re.lastIndex;
+    }
+    if (last < text.length) {
+      tokens.push(html`${text.slice(last)}`);
+    }
+    return html`${tokens}`;
+  }
+
+  private async _copyResponse() {
+    if (!this._response) return;
+    const text = this._formatBody(this._response.body);
+    await navigator.clipboard.writeText(text);
+    this._copied = true;
+    setTimeout(() => { this._copied = false; }, 2000);
+  }
+
+  private _handleGlobalKeyDown(e: KeyboardEvent) {
+    if (e.key === 'Enter' && (e.ctrlKey || e.metaKey) && !this._loading) {
+      e.preventDefault();
+      this._send();
+    }
+  }
+
   private _renderFormFields() {
     const content = this.operation.requestBody!.content[0];
     const mediaType = content.mediaType;
@@ -1175,7 +1303,7 @@ export class SlTryIt extends LitElement {
     const serverObjs = this.operation.servers.length > 0 ? this.operation.servers : this.servers;
 
     return html`
-      <div class="try-it-layout">
+      <div class="try-it-layout" @keydown=${this._handleGlobalKeyDown}>
         <!-- Left: Request Panel -->
         <div class="request-panel">
           <div class="request-scroll">
@@ -1254,6 +1382,14 @@ export class SlTryIt extends LitElement {
                       <textarea
                         .value=${this._bodyValue}
                         @input=${(e: Event) => { this._bodyValue = (e.target as HTMLTextAreaElement).value; }}
+                        @blur=${(e: Event) => {
+                          const ta = e.target as HTMLTextAreaElement;
+                          try {
+                            const formatted = JSON.stringify(JSON.parse(ta.value), null, 2);
+                            this._bodyValue = formatted;
+                            ta.value = formatted;
+                          } catch { /* keep as-is */ }
+                        }}
                       ></textarea>
                     </div>
                   `}
@@ -1267,6 +1403,7 @@ export class SlTryIt extends LitElement {
               </svg>
               ${this._loading ? 'Sending…' : 'Send Request'}
             </button>
+            <span class="enter-hint"><kbd>Ctrl+Enter</kbd> to send</span>
           </div>
         </div>
 
@@ -1283,7 +1420,10 @@ export class SlTryIt extends LitElement {
             </div>
             <div class="response-scroll">
               <div class="response-body">
-                <pre><code>${this._formatBody(this._response.body)}</code></pre>
+                <button class="copy-btn ${this._copied ? 'copied' : ''}" @click=${this._copyResponse}>
+                  ${this._copied ? '✓ Copied' : 'Copy'}
+                </button>
+                <pre><code>${this._highlightJson(this._formatBody(this._response.body))}</code></pre>
               </div>
               <div class="response-headers-section">
                 <div class="response-headers-title" @click=${() => this._showResponseHeaders = !this._showResponseHeaders}>
