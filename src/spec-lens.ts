@@ -856,6 +856,15 @@ export class SpecLensElement extends LitElement {
     }
   }
 
+  private async _copyTryItPrompt(): Promise<void> {
+    this._tryItAiMenuOpen = false;
+    if (!this._tryItOperation) return;
+    const prompt = generateAiPrompt(this._tryItOperation);
+    await navigator.clipboard.writeText(prompt);
+    this._aiToast = true;
+    setTimeout(() => { this._aiToast = false; }, 4000);
+  }
+
   /** Set the color theme programmatically. Useful in embed mode where the header is hidden. */
   setTheme(preference: 'light' | 'dark' | 'auto'): void {
     this.theme = preference;
@@ -1087,6 +1096,14 @@ export class SpecLensElement extends LitElement {
                     <path d="M13.827 3.52h-3.654L5 20.48h3.213l1.436-4.115h4.847l1.367 4.115H19L13.827 3.52zm-3.192 10.6 1.85-5.3 1.744 5.3h-3.594z"/>
                   </svg>
                   Claude
+                </button>
+                <div style="border-top:1px solid var(--sl-color-border);margin:4px 0"></div>
+                <button class="try-it-ai-menu-item" @click=${() => this._copyTryItPrompt()}>
+                  <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+                    <rect x="5" y="5" width="8" height="8" rx="1"/>
+                    <path d="M3 11V3h8"/>
+                  </svg>
+                  Copy Prompt
                 </button>
               </div>
             ` : null}
