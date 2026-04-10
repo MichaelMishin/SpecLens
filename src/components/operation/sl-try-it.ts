@@ -165,23 +165,71 @@ export class SlTryIt extends LitElement {
       }
 
       textarea {
-        width: 100%;
-        min-height: 200px;
-        padding: var(--sl-spacing-sm);
+        display: none;
+      }
+
+      /* ── Code editor (overlay technique) ─── */
+      .code-editor {
+        position: relative;
+        min-height: 400px;
         border: 1px solid var(--sl-color-border);
         border-radius: var(--sl-radius-sm);
         background: var(--sl-color-code-bg);
-        color: var(--sl-color-code-text);
+        transition: border-color var(--sl-transition-fast);
+        overflow: hidden;
+      }
+
+      .code-editor:focus-within {
+        border-color: var(--sl-color-primary);
+      }
+
+      .code-editor-highlight,
+      .code-editor-input {
+        margin: 0;
+        padding: var(--sl-spacing-sm);
         font-family: var(--sl-font-mono);
         font-size: var(--sl-font-size-sm);
         line-height: 1.6;
-        resize: vertical;
-        outline: none;
-        transition: border-color var(--sl-transition-fast);
+        white-space: pre-wrap;
+        word-break: break-word;
+        overflow-wrap: break-word;
+        border: none;
+        min-height: 400px;
+        tab-size: 2;
       }
 
-      textarea:focus {
-        border-color: var(--sl-color-primary);
+      .code-editor-highlight {
+        color: var(--sl-color-code-text);
+        pointer-events: none;
+      }
+
+      .code-editor-highlight code::after {
+        content: '\A';
+      }
+
+      .code-editor-input {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        background: transparent;
+        color: transparent;
+        caret-color: var(--sl-color-text);
+        resize: none;
+        outline: none;
+        overflow: auto;
+        scrollbar-width: thin;
+        scrollbar-color: var(--sl-color-border) transparent;
+      }
+
+      .code-editor-input::selection {
+        background: rgba(99, 102, 241, 0.25);
+      }
+
+      .code-editor-input::-webkit-scrollbar { width: 5px; }
+      .code-editor-input::-webkit-scrollbar-thumb {
+        background: var(--sl-color-border);
+        border-radius: 3px;
       }
 
       /* JSON syntax colors */
@@ -672,9 +720,6 @@ export class SlTryIt extends LitElement {
 
       .response-body {
         padding: var(--sl-spacing-md) var(--sl-spacing-lg);
-      }
-
-      .response-body {
         position: relative;
       }
 
@@ -683,7 +728,6 @@ export class SlTryIt extends LitElement {
         border: 1px solid var(--sl-resp-border);
         border-radius: var(--sl-radius-sm);
         padding: var(--sl-spacing-md);
-        padding-right: 60px;
         font-size: var(--sl-font-size-sm);
         color: var(--sl-resp-code-text);
         overflow-x: auto;
@@ -698,13 +742,13 @@ export class SlTryIt extends LitElement {
 
       .copy-btn {
         position: absolute;
-        top: var(--sl-spacing-sm);
-        right: var(--sl-spacing-sm);
+        top: calc(var(--sl-spacing-md) + var(--sl-spacing-sm));
+        right: calc(var(--sl-spacing-lg) + var(--sl-spacing-sm));
         padding: 4px 10px;
         border-radius: var(--sl-radius-sm);
         font-size: var(--sl-font-size-xs);
         color: var(--sl-resp-text-dim);
-        background: var(--sl-resp-bg);
+        background: var(--sl-resp-code-bg);
         border: 1px solid var(--sl-resp-border);
         transition: all var(--sl-transition-fast);
         z-index: 1;
@@ -713,7 +757,7 @@ export class SlTryIt extends LitElement {
 
       .copy-btn:hover {
         color: var(--sl-resp-text);
-        background: var(--sl-resp-code-bg);
+        background: var(--sl-resp-bg);
         border-color: var(--sl-resp-text-dim);
       }
 
@@ -1139,6 +1183,15 @@ export class SlTryIt extends LitElement {
     }
   }
 
+  private _handleEditorScroll(e: Event) {
+    const textarea = e.target as HTMLTextAreaElement;
+    const pre = textarea.previousElementSibling as HTMLElement;
+    if (pre) {
+      pre.scrollTop = textarea.scrollTop;
+      pre.scrollLeft = textarea.scrollLeft;
+    }
+  }
+
   private _renderFormFields() {
     const content = this.operation.requestBody!.content[0];
     const mediaType = content.mediaType;
@@ -1379,18 +1432,24 @@ export class SlTryIt extends LitElement {
                   : html`
                     <div class="form-section">
                       <div class="form-label">Request Body</div>
-                      <textarea
-                        .value=${this._bodyValue}
-                        @input=${(e: Event) => { this._bodyValue = (e.target as HTMLTextAreaElement).value; }}
-                        @blur=${(e: Event) => {
-                          const ta = e.target as HTMLTextAreaElement;
-                          try {
-                            const formatted = JSON.stringify(JSON.parse(ta.value), null, 2);
-                            this._bodyValue = formatted;
-                            ta.value = formatted;
-                          } catch { /* keep as-is */ }
-                        }}
-                      ></textarea>
+                      <div class="code-editor">
+                        <pre class="code-editor-highlight"><code>${this._highlightJson(this._bodyValue)}</code></pre>
+                        <textarea
+                          class="code-editor-input"
+                          spellcheck="false"
+                          .value=${this._bodyValue}
+                          @input=${(e: Event) => { this._bodyValue = (e.target as HTMLTextAreaElement).value; }}
+                          @blur=${(e: Event) => {
+                            const ta = e.target as HTMLTextAreaElement;
+                            try {
+                              const formatted = JSON.stringify(JSON.parse(ta.value), null, 2);
+                              this._bodyValue = formatted;
+                              ta.value = formatted;
+                            } catch { /* keep as-is */ }
+                          }}
+                          @scroll=${this._handleEditorScroll}
+                        ></textarea>
+                      </div>
                     </div>
                   `}
             ` : null}
