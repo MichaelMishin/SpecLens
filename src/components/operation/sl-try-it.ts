@@ -164,10 +164,6 @@ export class SlTryIt extends LitElement {
         padding: var(--sl-spacing-xs) 0;
       }
 
-      textarea {
-        display: none;
-      }
-
       /* ── Code editor (overlay technique) ─── */
       .code-editor {
         position: relative;
@@ -204,7 +200,7 @@ export class SlTryIt extends LitElement {
       }
 
       .code-editor-highlight code::after {
-        content: '\A';
+        content: '\\A';
       }
 
       .code-editor-input {
